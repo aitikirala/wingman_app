@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:sign_in_button/sign_in_button.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -85,9 +88,27 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _handleGoogleSignIn() async {
     try {
+      String? clientId;
+
+      if (kIsWeb) {
+        // Web Client ID
+        clientId =
+            "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com";
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        // iOS Client ID
+        clientId =
+            "669294062001-i8jnjtmn6b8ki4qqddkgb003uuuq295r.apps.googleusercontent.com";
+      } else if (defaultTargetPlatform == TargetPlatform.android) {
+        // For Android, you typically don't need to specify the clientId
+        clientId =
+            "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com";
+      } else {
+        // Other platforms (e.g., macOS, Windows)
+        clientId = null;
+      }
+
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId:
-            "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com", // Add your Client ID here
+        clientId: clientId,
       );
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
