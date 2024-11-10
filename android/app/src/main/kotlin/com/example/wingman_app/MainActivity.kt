@@ -1,4 +1,4 @@
-package com.example.wingman_app
+package com.aa.wingmanApp
 
 import io.flutter.embedding.android.FlutterActivity
 
