@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -50,21 +41,51 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDcZ5fgjex9tjFPETAr7ES-X476N54bVG8',
-    appId: '1:241739100368:android:97d51eedfe512ccfdb6ed5',
-    messagingSenderId: '241739100368',
-    projectId: 'fluttersigninyt',
-    storageBucket: 'fluttersigninyt.appspot.com',
+    apiKey: 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8',
+    appId: '1:669294062001:android:b543e7165840d2b2a27590',
+    messagingSenderId: '669294062001',
+    projectId: 'wingmanapp-a8de3',
+    storageBucket: 'wingmanapp-a8de3.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB0VqpNgqmqSW4YF2a0-pldRB5P28m1G2o',
-    appId: '1:241739100368:ios:93d3973d0a3763d2db6ed5',
-    messagingSenderId: '241739100368',
-    projectId: 'fluttersigninyt',
-    storageBucket: 'fluttersigninyt.appspot.com',
-    androidClientId: '241739100368-9gf2q2ekaop1cjt195q8i5g2r83ojg9b.apps.googleusercontent.com',
-    iosClientId: '241739100368-eqlk4aej7n3qq08rh4tb9h3s2279v7nh.apps.googleusercontent.com',
-    iosBundleId: 'com.example.flutterGoogleSignInFirebaseTutorialYt',
+    apiKey: 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug',
+    appId: '1:669294062001:ios:1927512899332d58a27590',
+    messagingSenderId: '669294062001',
+    projectId: 'wingmanapp-a8de3',
+    storageBucket: 'wingmanapp-a8de3.firebasestorage.app',
+    iosClientId: '669294062001-i8jnjtmn6b8ki4qqddkgb003uuuq295r.apps.googleusercontent.com',
+    iosBundleId: 'com.example.wingmanApp',
   );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps',
+    appId: '1:669294062001:web:4bd3a0139c48782fa27590',
+    messagingSenderId: '669294062001',
+    projectId: 'wingmanapp-a8de3',
+    authDomain: 'wingmanapp-a8de3.firebaseapp.com',
+    storageBucket: 'wingmanapp-a8de3.firebasestorage.app',
+    measurementId: 'G-PGCP2LP1LG',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug',
+    appId: '1:669294062001:ios:1927512899332d58a27590',
+    messagingSenderId: '669294062001',
+    projectId: 'wingmanapp-a8de3',
+    storageBucket: 'wingmanapp-a8de3.firebasestorage.app',
+    iosClientId: '669294062001-i8jnjtmn6b8ki4qqddkgb003uuuq295r.apps.googleusercontent.com',
+    iosBundleId: 'com.example.wingmanApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps',
+    appId: '1:669294062001:web:627a378c2a66e553a27590',
+    messagingSenderId: '669294062001',
+    projectId: 'wingmanapp-a8de3',
+    authDomain: 'wingmanapp-a8de3.firebaseapp.com',
+    storageBucket: 'wingmanapp-a8de3.firebasestorage.app',
+    measurementId: 'G-14NBXK8KGH',
+  );
+
 }

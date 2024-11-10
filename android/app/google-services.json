@@ -40,6 +40,42 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:669294062001:android:b543e7165840d2b2a27590",
+        "android_client_info": {
+          "package_name": "com.example.wingmanapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "669294062001-i8jnjtmn6b8ki4qqddkgb003uuuq295r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.wingmanApp"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
