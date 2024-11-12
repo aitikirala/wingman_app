@@ -110,24 +110,79 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Future<void> _handleGoogleSignIn() async {
+  //   try {
+  //     String? clientId;
+
+  //     if (kIsWeb) {
+  //       // Web Client ID
+  //       clientId =
+  //           "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com";
+  //     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+  //       // iOS Client ID
+  //       clientId =
+  //           "669294062001-i8jnjtmn6b8ki4qqddkgb003uuuq295r.apps.googleusercontent.com";
+  //     } else if (defaultTargetPlatform == TargetPlatform.android) {
+  //       // For Android, you typically don't need to specify the clientId
+  //       clientId =
+  //           "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com";
+  //     } else {
+  //       // Other platforms (e.g., macOS, Windows)
+  //       clientId = null;
+  //     }
+
+  //     final GoogleSignIn googleSignIn = GoogleSignIn(
+  //       clientId: clientId,
+  //     );
+  //     final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+  //     if (googleUser == null) {
+  //       // The user canceled the sign-in
+  //       return;
+  //     }
+
+  //     final GoogleSignInAuthentication googleAuth =
+  //         await googleUser.authentication;
+
+  //     final OAuthCredential credential = GoogleAuthProvider.credential(
+  //       accessToken: googleAuth.accessToken,
+  //       idToken: googleAuth.idToken,
+  //     );
+
+  //     await _auth.signInWithCredential(credential);
+
+  //     // Get the current user
+  //     User? user = _auth.currentUser;
+
+  //     if (user != null) {
+  //       // Store user data in Firestore without overwriting existing fields
+  //       await _firestore.collection('users').doc(user.uid).set({
+  //         'displayName': user.displayName,
+  //         'email': user.email,
+  //         'photoURL': user.photoURL,
+  //         'lastSignInTime': FieldValue.serverTimestamp(),
+  //         'provider': 'google',
+  //       }, SetOptions(merge: true));
+  //     }
+  //   } catch (error) {
+  //     print('Error during Google Sign-In: $error');
+  //   }
+  // }
+
   Future<void> _handleGoogleSignIn() async {
     try {
       String? clientId;
 
       if (kIsWeb) {
-        // Web Client ID
         clientId =
             "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com";
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-        // iOS Client ID
         clientId =
             "669294062001-i8jnjtmn6b8ki4qqddkgb003uuuq295r.apps.googleusercontent.com";
       } else if (defaultTargetPlatform == TargetPlatform.android) {
-        // For Android, you typically don't need to specify the clientId
         clientId =
             "669294062001-13fjec4k4jl5ucdb62eva2qo9va6ku0l.apps.googleusercontent.com";
       } else {
-        // Other platforms (e.g., macOS, Windows)
         clientId = null;
       }
 
@@ -155,9 +210,27 @@ class _HomePageState extends State<HomePage> {
       User? user = _auth.currentUser;
 
       if (user != null) {
+        // Extract first and last names
+        String? displayName = user.displayName;
+        String? firstName;
+        String? lastName;
+
+        if (displayName != null) {
+          List<String> nameParts = displayName.split(' ');
+          if (nameParts.length > 1) {
+            firstName = nameParts.first;
+            lastName = nameParts.sublist(1).join(' ');
+          } else {
+            firstName = displayName;
+            lastName = '';
+          }
+        }
+
         // Store user data in Firestore without overwriting existing fields
         await _firestore.collection('users').doc(user.uid).set({
-          'displayName': user.displayName,
+          'displayName': displayName,
+          'firstName': firstName,
+          'lastName': lastName,
           'email': user.email,
           'photoURL': user.photoURL,
           'lastSignInTime': FieldValue.serverTimestamp(),
