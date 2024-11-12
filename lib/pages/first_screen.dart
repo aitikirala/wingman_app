@@ -62,7 +62,7 @@ class _HomePageState extends State<HomePage> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Custom Google Sign-In button with transparent background and white border
+        // Custom Google Sign-In button with the Google logo
         Container(
           width: 300, // Set a fixed width for consistency
           height: 50, // Fixed height for both buttons
@@ -70,20 +70,28 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(30), // Match button radius
             border: Border.all(color: Colors.white, width: 2), // White border
           ),
-          child: ElevatedButton.icon(
+          child: ElevatedButton(
             onPressed: _handleGoogleSignIn,
-            icon: Icon(Icons.g_mobiledata_sharp,
-                color: Colors.white, size: 30), // Google "G" placeholder icon
-            label: Text(
-              "Sign in with Google",
-              style: TextStyle(color: Colors.white),
-            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent, // Transparent background
               elevation: 0, // Remove button shadow
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  './lib/assests/images/google_logo.png',
+                  height: 24, // Adjust size as needed
+                ),
+                SizedBox(width: 10),
+                Text(
+                  "Sign in with Google",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
             ),
           ),
         ),
