@@ -14,3 +14,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+* all 3: flutter clean, flutter pub get
+* ios: cd iOS, pod install, sudo gem install pods
+* chrome and android good to go after cloning, cd, and flutter pub get
