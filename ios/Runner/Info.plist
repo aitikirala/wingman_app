@@ -65,6 +65,15 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>We need your location to show nearby places on the map.</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>We need your location to show nearby places on the map.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>We need your location to show nearby places on the map.</string>
+    <key>GMSApiKey</key>
+    <string>AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug</string>
+
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -1,4 +1,8 @@
 // main.dart
+// Define platform-specific API keys
+// final String apiKeyIOS = 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug';
+// final String apiKeyAndroid = 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8';
+// final String apiKeyWeb = 'AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
