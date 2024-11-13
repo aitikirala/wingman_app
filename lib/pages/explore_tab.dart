@@ -1,3 +1,7 @@
+// final String apiKeyIOS = 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug';
+// final String apiKeyAndroid = 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8';
+// final String apiKeyWeb = 'AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps';
+
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -16,11 +20,14 @@ class ExploreTab extends StatefulWidget {
 class _ExploreTabState extends State<ExploreTab> {
   LatLng? currentLocation;
   String? errorMessage;
+  String? zipCode;
   List<dynamic> nearbyPlaces = [];
 
   final String apiKeyIOS = 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug';
   final String apiKeyAndroid = 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8';
   final String apiKeyWeb = 'AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps';
+  final String geocodingApiKey =
+      'AIzaSyC7H09WpqfBy2EEamBKXzvLAMcmApR-HyM'; // Geocoding API key
 
   String get apiKey {
     if (kIsWeb) {
@@ -77,10 +84,52 @@ class _ExploreTabState extends State<ExploreTab> {
         errorMessage = null;
       });
 
+      await _getZipCode(); // Fetch zip code
       await _fetchNearbyPlaces();
     } catch (e) {
       setState(() {
         errorMessage = "Error fetching location: $e";
+      });
+    }
+  }
+
+  Future<void> _getZipCode() async {
+    if (currentLocation == null) return;
+
+    final latitude = currentLocation!.latitude;
+    final longitude = currentLocation!.longitude;
+    final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/geocode/json?latlng=$latitude,$longitude&key=$geocodingApiKey');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          // Extract postal code from the response
+          final addressComponents = data['results'][0]['address_components'];
+          for (var component in addressComponents) {
+            if (component['types'].contains('postal_code')) {
+              setState(() {
+                zipCode = component['long_name'];
+              });
+              break;
+            }
+          }
+        } else {
+          setState(() {
+            errorMessage = 'Failed to retrieve zip code: ${data['status']}';
+          });
+        }
+      } else {
+        setState(() {
+          errorMessage =
+              'Failed to fetch zip code. Status code: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error fetching zip code: $e';
       });
     }
   }
@@ -92,10 +141,8 @@ class _ExploreTabState extends State<ExploreTab> {
     final double longitude = currentLocation!.longitude;
     final int radius = 32187; // 20 miles in meters
 
-    // Replace with your Firebase Function URL
     final String firebaseFunctionUrl =
         'https://us-central1-wingmanapp-a8de3.cloudfunctions.net/nearbyPlaces';
-
     final url = Uri.parse(
         '$firebaseFunctionUrl?latitude=$latitude&longitude=$longitude&radius=$radius&platform=${kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android')}');
 
@@ -117,22 +164,6 @@ class _ExploreTabState extends State<ExploreTab> {
         errorMessage =
             'Failed to load nearby places. Status code: ${response.statusCode}';
       });
-    }
-  }
-
-  Future<Map<String, dynamic>> _fetchPlaceDetails(String placeId) async {
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$apiKey',
-    );
-
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['result'] ?? {};
-    } else {
-      print(
-          "Failed to load place details. Status code: ${response.statusCode}");
-      return {};
     }
   }
 
@@ -226,6 +257,22 @@ class _ExploreTabState extends State<ExploreTab> {
     );
   }
 
+  Future<Map<String, dynamic>> _fetchPlaceDetails(String placeId) async {
+    final url = Uri.parse(
+      'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$apiKey',
+    );
+
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['result'] ?? {};
+    } else {
+      print(
+          "Failed to load place details. Status code: ${response.statusCode}");
+      return {};
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -249,11 +296,11 @@ class _ExploreTabState extends State<ExploreTab> {
             ),
           ] else ...[
             Text(
-              'Your Current Location:',
+              'Places near: ',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(
-              'Latitude: ${currentLocation!.latitude}, Longitude: ${currentLocation!.longitude}',
+              zipCode ?? 'Fetching zip code...',
               style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
