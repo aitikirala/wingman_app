@@ -1,5 +1,4 @@
 // profile_tab.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -69,17 +68,14 @@ class _ProfileTabState extends State<ProfileTab> {
       future: _userDocFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show a loading indicator while fetching data
           return Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          // If user data doesn't exist, show a message
           return Center(child: Text('No user data found'));
         }
         Map<String, dynamic> userData =
             snapshot.data!.data() as Map<String, dynamic>;
 
-        // Initialize controllers if not already initialized
         if (!_controllersInitialized) {
           _firstNameController.text = userData['firstName'] ?? '';
           _lastNameController.text = userData['lastName'] ?? '';
@@ -92,7 +88,6 @@ class _ProfileTabState extends State<ProfileTab> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
-                // Center all elements
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -114,7 +109,6 @@ class _ProfileTabState extends State<ProfileTab> {
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 20),
-                  // Editable TextFields for First Name, Last Name, and DOB
                   TextField(
                     controller: _firstNameController,
                     decoration: InputDecoration(labelText: 'First Name'),
@@ -131,9 +125,8 @@ class _ProfileTabState extends State<ProfileTab> {
                     controller: _dobController,
                     decoration: InputDecoration(labelText: 'Date of Birth'),
                     textAlign: TextAlign.center,
-                    readOnly: true, // To use a DatePicker
+                    readOnly: true,
                     onTap: () async {
-                      // Show DatePicker when tapped
                       DateTime? pickedDate = await showDatePicker(
                         context: context,
                         initialDate: DateTime.tryParse(_dobController.text) ??
@@ -152,18 +145,39 @@ class _ProfileTabState extends State<ProfileTab> {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: BorderSide(color: Colors.white),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 16),
+                    ),
                     child: Text('Save'),
                   ),
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () async {
                       await _auth.signOut();
-                      // Navigate back to the sign-in screen
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(builder: (context) => HomePage()),
                         (Route<dynamic> route) => false,
                       );
                     },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: BorderSide(color: Colors.white),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 16),
+                    ),
                     child: Text('Sign Out'),
                   ),
                   SizedBox(height: 40),

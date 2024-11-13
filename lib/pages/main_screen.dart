@@ -1,9 +1,10 @@
 // main_screen.dart
-
 import 'package:flutter/material.dart';
 
-import 'home_tab.dart';
+import 'explore_tab.dart';
 import 'profile_tab.dart';
+import 'home_tab.dart';
+import 'plan_tab.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -18,6 +19,8 @@ class _MainScreenState extends State<MainScreen> {
   // List of widgets for each tab
   static List<Widget> _widgetOptions = <Widget>[
     HomeTab(),
+    ExploreTab(),
+    PlanTab(),
     ProfileTab(),
   ];
 
@@ -32,10 +35,20 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Color(0xFFFF88379), // Corrected color
+        type: BottomNavigationBarType.fixed, // Prevents shifting colors
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
-            label: 'Home', // Placeholder tab
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.explore),
+            label: 'Explore',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event),
+            label: 'Plan',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
@@ -43,7 +56,9 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blueAccent,
+        selectedItemColor: Colors.white, // Ensure it contrasts with background
+        unselectedItemColor: const Color.fromARGB(
+            172, 68, 69, 71), // Lighter shade for unselected
         onTap: _onItemTapped,
       ),
     );
