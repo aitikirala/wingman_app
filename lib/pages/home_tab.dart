@@ -22,7 +22,6 @@ class _HomeTabState extends State<HomeTab> {
   final String apiKeyAndroid = 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8';
   final String apiKeyWeb = 'AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps';
 
-
   String get apiKey {
     if (kIsWeb) {
       return apiKeyWeb;
@@ -65,7 +64,7 @@ class _HomeTabState extends State<HomeTab> {
       if (permission == LocationPermission.deniedForever) {
         setState(() {
           errorMessage =
-          "Location permissions are permanently denied. We cannot access your location.";
+              "Location permissions are permanently denied. We cannot access your location.";
         });
         return;
       }
@@ -93,10 +92,12 @@ class _HomeTabState extends State<HomeTab> {
     final double longitude = currentLocation!.longitude;
     final int radius = 32187; // 20 miles in meters
 
+    // Replace with your Firebase Function URL
+    final String firebaseFunctionUrl =
+        'https://us-central1-wingmanapp-a8de3.cloudfunctions.net/nearbyPlaces';
+
     final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
-          '?location=$latitude,$longitude&radius=$radius&type=establishment&key=$apiKey',
-    );
+        '$firebaseFunctionUrl?latitude=$latitude&longitude=$longitude&radius=$radius&platform=${kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android')}');
 
     final response = await http.get(url);
 
@@ -113,7 +114,8 @@ class _HomeTabState extends State<HomeTab> {
       }
     } else {
       setState(() {
-        errorMessage = 'Failed to load nearby places. Status code: ${response.statusCode}';
+        errorMessage =
+            'Failed to load nearby places. Status code: ${response.statusCode}';
       });
     }
   }
@@ -128,16 +130,21 @@ class _HomeTabState extends State<HomeTab> {
       final data = json.decode(response.body);
       return data['result'] ?? {};
     } else {
-      print("Failed to load place details. Status code: ${response.statusCode}");
+      print(
+          "Failed to load place details. Status code: ${response.statusCode}");
       return {};
     }
   }
 
   void _onPlaceTap(dynamic place) async {
     final placeDetails = await _fetchPlaceDetails(place['place_id']);
-    final phoneNumber = placeDetails['formatted_phone_number'] ?? 'No Phone Number';
-    final openingHours = placeDetails['opening_hours']?['weekday_text'] ?? ['No hours available'];
-    final photoReference = placeDetails['photos'] != null ? placeDetails['photos'][0]['photo_reference'] : null;
+    final phoneNumber =
+        placeDetails['formatted_phone_number'] ?? 'No Phone Number';
+    final openingHours = placeDetails['opening_hours']?['weekday_text'] ??
+        ['No hours available'];
+    final photoReference = placeDetails['photos'] != null
+        ? placeDetails['photos'][0]['photo_reference']
+        : null;
 
     final photoUrl = photoReference != null
         ? 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=$photoReference&key=$apiKey'
@@ -147,7 +154,8 @@ class _HomeTabState extends State<HomeTab> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Center(
             child: Text(
               placeDetails['name'] ?? 'No Name',
@@ -162,21 +170,25 @@ class _HomeTabState extends State<HomeTab> {
                 if (photoUrl != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.network(photoUrl, height: 150, fit: BoxFit.cover),
+                    child:
+                        Image.network(photoUrl, height: 150, fit: BoxFit.cover),
                   ),
                 const SizedBox(height: 12),
-                _buildDetailRow(Icons.location_on, 'Address', placeDetails['formatted_address'] ?? 'No Address'),
+                _buildDetailRow(Icons.location_on, 'Address',
+                    placeDetails['formatted_address'] ?? 'No Address'),
                 const SizedBox(height: 8),
                 _buildDetailRow(Icons.phone, 'Phone', phoneNumber),
                 const SizedBox(height: 8),
-                _buildDetailRow(Icons.star, 'Rating', placeDetails['rating']?.toString() ?? 'No Rating'),
+                _buildDetailRow(Icons.star, 'Rating',
+                    placeDetails['rating']?.toString() ?? 'No Rating'),
                 const SizedBox(height: 12),
                 const Text(
                   'Opening Hours:',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
-                ...openingHours.map((hour) => Text(hour, style: const TextStyle(color: Colors.grey))),
+                ...openingHours.map((hour) =>
+                    Text(hour, style: const TextStyle(color: Colors.grey))),
               ],
             ),
           ),
@@ -214,7 +226,6 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -251,76 +262,79 @@ class _HomeTabState extends State<HomeTab> {
               child: nearbyPlaces.isEmpty
                   ? const Text("No places found within 10 miles.")
                   : ListView.builder(
-                itemCount: nearbyPlaces.length,
-                itemBuilder: (context, index) {
-                  final place = nearbyPlaces[index];
-                  final photoReference = place['photos'] != null
-                      ? place['photos'][0]['photo_reference']
-                      : null;
+                      itemCount: nearbyPlaces.length,
+                      itemBuilder: (context, index) {
+                        final place = nearbyPlaces[index];
+                        final photoReference = place['photos'] != null
+                            ? place['photos'][0]['photo_reference']
+                            : null;
 
-                  final photoUrl = photoReference != null
-                      ? 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=100&photoreference=$photoReference&key=$apiKey'
-                      : null;
+                        final photoUrl = photoReference != null
+                            ? 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=100&photoreference=$photoReference&key=$apiKey'
+                            : null;
 
-                  return InkWell(
-                    onTap: () => _onPlaceTap(place),
-                    child: Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      elevation: 4,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        return InkWell(
+                          onTap: () => _onPlaceTap(place),
+                          child: Card(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            elevation: 4,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Row(
                                 children: [
-                                  Text(
-                                    place['name'] ?? 'No Name',
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          place['name'] ?? 'No Name',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          place['vicinity'] ?? 'No Address',
+                                          style: const TextStyle(
+                                              fontSize: 16, color: Colors.grey),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Rating: ${place['rating'] ?? 'No Rating'}',
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    place['vicinity'] ?? 'No Address',
-                                    style: const TextStyle(fontSize: 16, color: Colors.grey),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Rating: ${place['rating'] ?? 'No Rating'}',
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
+                                  if (photoUrl != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 8.0),
+                                      child: Image.network(
+                                        photoUrl,
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return const Icon(Icons.broken_image,
+                                              size: 100);
+                                        },
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
-                            if (photoUrl != null)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 8.0),
-                                child: Image.network(
-                                  photoUrl,
-                                  width: 100,
-                                  height: 100,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(Icons.broken_image, size: 100);
-                                  },
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ],
       ),
     );
   }
-
-
 }
