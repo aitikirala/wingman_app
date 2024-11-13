@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'main_screen.dart';
+import 'navbar_setup.dart';
 
 class PhoneSignInScreen extends StatefulWidget {
   @override
@@ -37,7 +37,6 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
     await _auth.verifyPhoneNumber(
       phoneNumber: phoneNumber,
       verificationCompleted: (PhoneAuthCredential credential) async {
-        // Auto-sign in on Android
         await _auth.signInWithCredential(credential);
         await _saveUserToFirestore();
       },
@@ -84,14 +83,12 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
   Future<void> _saveUserToFirestore() async {
     User? user = _auth.currentUser;
     if (user != null) {
-      // Store user data in Firestore without overwriting existing fields
       await _firestore.collection('users').doc(user.uid).set({
         'phoneNumber': user.phoneNumber,
         'lastSignInTime': FieldValue.serverTimestamp(),
         'provider': 'phone',
       }, SetOptions(merge: true));
 
-      // Navigate to the main screen after successful sign-in
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => MainScreen()),
         (Route<dynamic> route) => false,
@@ -110,7 +107,6 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Phone Number Input
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: TextField(
@@ -125,10 +121,20 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
               SizedBox(height: 10),
               ElevatedButton(
                 onPressed: _sendCodeToPhoneNumber,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    side: BorderSide(color: Colors.white),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                ),
                 child: Text('Send Code'),
               ),
               SizedBox(height: 10),
-              // Verification Code Input
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: TextField(
@@ -142,6 +148,17 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
               SizedBox(height: 10),
               ElevatedButton(
                 onPressed: _signInWithPhoneNumber,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    side: BorderSide(color: Colors.white),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                ),
                 child: Text('Verify Code'),
               ),
             ],
