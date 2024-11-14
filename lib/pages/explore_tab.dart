@@ -134,26 +134,36 @@ class _ExploreTabState extends State<ExploreTab> {
     }
   }
 
-  Future<void> _fetchNearbyPlaces() async {
+  Set<String> usedTokens = {}; // To keep track of used next_page_tokens
+
+  Future<void> _fetchNearbyPlaces({String? pageToken}) async {
     if (currentLocation == null) return;
 
     final double latitude = currentLocation!.latitude;
     final double longitude = currentLocation!.longitude;
     final int radius = 32187; // 20 miles in meters
 
-    final String firebaseFunctionUrl =
-        'https://us-central1-wingmanapp-a8de3.cloudfunctions.net/nearbyPlaces';
+    // Build the URL with or without the pageToken
     final url = Uri.parse(
-        '$firebaseFunctionUrl?latitude=$latitude&longitude=$longitude&radius=$radius&platform=${kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android')}');
+        'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=$latitude,$longitude&radius=$radius&key=$apiKey${pageToken != null ? '&pagetoken=$pageToken' : ''}');
 
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+
       if (data['status'] == 'OK') {
         setState(() {
-          nearbyPlaces = data['results'];
+          // Append new results to existing list
+          nearbyPlaces.addAll(data['results']);
         });
+
+        // If there's a next page token, call the function again with the token
+        if (data['next_page_token'] != null) {
+          // Add a short delay before requesting the next page to allow token activation
+          await Future.delayed(Duration(seconds: 2));
+          _fetchNearbyPlaces(pageToken: data['next_page_token']);
+        }
       } else {
         setState(() {
           errorMessage = 'No results found: ${data['status']}';

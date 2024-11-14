@@ -9,7 +9,7 @@ const apiKeyWeb = "AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps";
 
 exports.nearbyPlaces = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
-    const {latitude, longitude, radius, platform} = req.query;
+    const {latitude, longitude, radius, platform, pagetoken} = req.query;
 
     // Select the API key based on the platform
     let apiKey;
@@ -24,7 +24,12 @@ exports.nearbyPlaces = functions.https.onRequest((req, res) => {
       return;
     }
 
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=establishment&key=${apiKey}`;
+    let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=establishment&key=${apiKey}`;
+
+    // Append pagetoken if provided
+    if (pagetoken) {
+      url += `&pagetoken=${pagetoken}`;
+    }
 
     try {
       const response = await axios.get(url);
