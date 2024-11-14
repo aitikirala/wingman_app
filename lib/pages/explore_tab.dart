@@ -22,8 +22,7 @@ class _ExploreTabState extends State<ExploreTab> {
   final String apiKeyIOS = 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug';
   final String apiKeyAndroid = 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8';
   final String apiKeyWeb = 'AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps';
-  final String geocodingApiKey =
-      'AIzaSyC7H09WpqfBy2EEamBKXzvLAMcmApR-HyM'; // Geocoding API key
+  final String geocodingApiKey = 'AIzaSyC7H09WpqfBy2EEamBKXzvLAMcmApR-HyM';
 
   String get apiKey {
     if (kIsWeb) {
@@ -128,21 +127,25 @@ class _ExploreTabState extends State<ExploreTab> {
     }
   }
 
-  Future<void> _fetchNearbyPlaces({String? pageToken}) async {
+  Future<void> _fetchNearbyPlaces(
+      {String? pageToken, int groupIndex = 0}) async {
     if (currentLocation == null) return;
 
     final double latitude = currentLocation!.latitude;
     final double longitude = currentLocation!.longitude;
-    final int radius = 32187;
+    final int radius = 32187; // 20 miles in meters
 
-    final url = Uri.parse('http://localhost:8080/api/proxy/nearbysearch')
-        .replace(queryParameters: {
-      'latitude': latitude.toString(),
-      'longitude': longitude.toString(),
-      'radius': radius.toString(),
-      'apiKey': apiKey,
-      if (pageToken != null) 'pageToken': pageToken,
-    });
+    final url =
+        Uri.parse('http://localhost:8080/api/proxy/nearbysearch').replace(
+      queryParameters: {
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+        'radius': radius.toString(),
+        'apiKey': apiKey,
+        'groupIndex': groupIndex.toString(),
+        if (pageToken != null) 'nextPageToken': pageToken,
+      },
+    );
 
     try {
       final response = await http.get(url);
@@ -150,19 +153,34 @@ class _ExploreTabState extends State<ExploreTab> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        if (data['status'] == 'OK') {
+        if (data.containsKey('error')) {
           setState(() {
-            nearbyPlaces.addAll(data['results']);
+            errorMessage = 'Error: ${data['error']}';
           });
+          return;
+        }
 
-          if (data['next_page_token'] != null) {
-            await Future.delayed(Duration(seconds: 2));
-            _fetchNearbyPlaces(pageToken: data['next_page_token']);
-          }
-        } else {
-          setState(() {
-            errorMessage = 'No results found: ${data['status']}';
-          });
+        final List<dynamic> results = data['results'] ?? [];
+        final String? newNextPageToken =
+            data['next_page_token'] ?? data['nextPageToken'];
+        final int? newGroupIndex = data['groupIndex'] != null
+            ? int.tryParse(data['groupIndex'].toString())
+            : null;
+
+        setState(() {
+          nearbyPlaces.addAll(results);
+        });
+
+        if (newNextPageToken != null) {
+          await Future.delayed(Duration(seconds: 2));
+          await _fetchNearbyPlaces(
+            pageToken: newNextPageToken,
+            groupIndex: groupIndex,
+          );
+        } else if (newGroupIndex != null) {
+          await _fetchNearbyPlaces(
+            groupIndex: newGroupIndex,
+          );
         }
       } else {
         setState(() {
@@ -188,11 +206,12 @@ class _ExploreTabState extends State<ExploreTab> {
         : null;
 
     final photoUrl = photoReference != null
-        ? Uri.parse('http://localhost:8080/api/proxy/photo')
-            .replace(queryParameters: {
-            'photoReference': photoReference,
-            'apiKey': apiKey,
-          }).toString()
+        ? Uri.parse('http://localhost:8080/api/proxy/photo').replace(
+            queryParameters: {
+              'photoReference': photoReference,
+              'apiKey': apiKey,
+            },
+          ).toString()
         : null;
 
     showDialog(
@@ -278,11 +297,12 @@ class _ExploreTabState extends State<ExploreTab> {
   }
 
   Future<Map<String, dynamic>> _fetchPlaceDetails(String placeId) async {
-    final url = Uri.parse('http://localhost:8080/api/proxy/detail')
-        .replace(queryParameters: {
-      'placeId': placeId,
-      'apiKey': apiKey,
-    });
+    final url = Uri.parse('http://localhost:8080/api/proxy/detail').replace(
+      queryParameters: {
+        'placeId': placeId,
+        'apiKey': apiKey,
+      },
+    );
 
     try {
       final response = await http.get(url);
