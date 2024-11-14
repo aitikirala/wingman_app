@@ -1,7 +1,3 @@
-// final String apiKeyIOS = 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug';
-// final String apiKeyAndroid = 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8';
-// final String apiKeyWeb = 'AIzaSyCzqFR9Ia-8H1M-fxaJ49EDld3aghn-6ps';
-
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -70,8 +66,7 @@ class _ExploreTabState extends State<ExploreTab> {
 
       if (permission == LocationPermission.deniedForever) {
         setState(() {
-          errorMessage =
-              "Location permissions are permanently denied. We cannot access your location.";
+          errorMessage = "Location permissions are permanently denied.";
         });
         return;
       }
@@ -84,7 +79,7 @@ class _ExploreTabState extends State<ExploreTab> {
         errorMessage = null;
       });
 
-      await _getZipCode(); // Fetch zip code
+      await _getZipCode();
       await _fetchNearbyPlaces();
     } catch (e) {
       setState(() {
@@ -106,7 +101,6 @@ class _ExploreTabState extends State<ExploreTab> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'OK') {
-          // Extract postal code from the response
           final addressComponents = data['results'][0]['address_components'];
           for (var component in addressComponents) {
             if (component['types'].contains('postal_code')) {
@@ -134,35 +128,51 @@ class _ExploreTabState extends State<ExploreTab> {
     }
   }
 
-  Future<void> _fetchNearbyPlaces() async {
+  Future<void> _fetchNearbyPlaces({String? pageToken}) async {
     if (currentLocation == null) return;
 
     final double latitude = currentLocation!.latitude;
     final double longitude = currentLocation!.longitude;
-    final int radius = 32187; // 20 miles in meters
+    final int radius = 32187;
 
-    final String firebaseFunctionUrl =
-        'https://us-central1-wingmanapp-a8de3.cloudfunctions.net/nearbyPlaces';
-    final url = Uri.parse(
-        '$firebaseFunctionUrl?latitude=$latitude&longitude=$longitude&radius=$radius&platform=${kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android')}');
+    final url = Uri.parse('http://localhost:8080/api/proxy/nearbysearch')
+        .replace(queryParameters: {
+      'latitude': latitude.toString(),
+      'longitude': longitude.toString(),
+      'radius': radius.toString(),
+      'apiKey': apiKey,
+      if (pageToken != null) 'pageToken': pageToken,
+    });
 
-    final response = await http.get(url);
+    try {
+      final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['status'] == 'OK') {
-        setState(() {
-          nearbyPlaces = data['results'];
-        });
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['status'] == 'OK') {
+          setState(() {
+            nearbyPlaces.addAll(data['results']);
+          });
+
+          if (data['next_page_token'] != null) {
+            await Future.delayed(Duration(seconds: 2));
+            _fetchNearbyPlaces(pageToken: data['next_page_token']);
+          }
+        } else {
+          setState(() {
+            errorMessage = 'No results found: ${data['status']}';
+          });
+        }
       } else {
         setState(() {
-          errorMessage = 'No results found: ${data['status']}';
+          errorMessage =
+              'Failed to load nearby places. Status code: ${response.statusCode}';
         });
       }
-    } else {
+    } catch (e) {
       setState(() {
-        errorMessage =
-            'Failed to load nearby places. Status code: ${response.statusCode}';
+        errorMessage = 'Error: $e';
       });
     }
   }
@@ -178,7 +188,11 @@ class _ExploreTabState extends State<ExploreTab> {
         : null;
 
     final photoUrl = photoReference != null
-        ? 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=$photoReference&key=$apiKey'
+        ? Uri.parse('http://localhost:8080/api/proxy/photo')
+            .replace(queryParameters: {
+            'photoReference': photoReference,
+            'apiKey': apiKey,
+          }).toString()
         : null;
 
     showDialog(
@@ -201,8 +215,14 @@ class _ExploreTabState extends State<ExploreTab> {
                 if (photoUrl != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child:
-                        Image.network(photoUrl, height: 150, fit: BoxFit.cover),
+                    child: Image.network(
+                      photoUrl,
+                      height: 150,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.broken_image, size: 100);
+                      },
+                    ),
                   ),
                 const SizedBox(height: 12),
                 _buildDetailRow(Icons.location_on, 'Address',
@@ -258,17 +278,24 @@ class _ExploreTabState extends State<ExploreTab> {
   }
 
   Future<Map<String, dynamic>> _fetchPlaceDetails(String placeId) async {
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$apiKey',
-    );
+    final url = Uri.parse('http://localhost:8080/api/proxy/detail')
+        .replace(queryParameters: {
+      'placeId': placeId,
+      'apiKey': apiKey,
+    });
 
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['result'] ?? {};
-    } else {
-      print(
-          "Failed to load place details. Status code: ${response.statusCode}");
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['result'] ?? {};
+      } else {
+        print(
+            "Failed to load place details. Status code: ${response.statusCode}");
+        return {};
+      }
+    } catch (e) {
+      print("Error fetching place details: $e");
       return {};
     }
   }
@@ -276,7 +303,7 @@ class _ExploreTabState extends State<ExploreTab> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 40.0), // Padding added
+      padding: const EdgeInsets.only(top: 40.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.start,
@@ -290,20 +317,14 @@ class _ExploreTabState extends State<ExploreTab> {
           ] else if (currentLocation == null) ...[
             const CircularProgressIndicator(),
             const SizedBox(height: 20),
-            const Text(
-              "Fetching your location...",
-              style: TextStyle(fontSize: 16),
-            ),
+            const Text("Fetching your location...",
+                style: TextStyle(fontSize: 16)),
           ] else ...[
-            Text(
-              'Places near: ',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              zipCode ?? 'Fetching zip code...',
-              style: const TextStyle(fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
+            Text('Places near: ',
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(zipCode ?? 'Fetching zip code...',
+                style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 20),
             Expanded(
               child: nearbyPlaces.isEmpty
@@ -317,7 +338,11 @@ class _ExploreTabState extends State<ExploreTab> {
                             : null;
 
                         final photoUrl = photoReference != null
-                            ? 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=100&photoreference=$photoReference&key=$apiKey'
+                            ? Uri.parse('http://localhost:8080/api/proxy/photo')
+                                .replace(queryParameters: {
+                                'photoReference': photoReference,
+                                'apiKey': apiKey,
+                              }).toString()
                             : null;
 
                         return InkWell(
@@ -338,9 +363,8 @@ class _ExploreTabState extends State<ExploreTab> {
                                         Text(
                                           place['name'] ?? 'No Name',
                                           style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
