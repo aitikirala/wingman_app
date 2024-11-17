@@ -6,6 +6,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+//change localhost:8080 to 10.0.2.2:8080 for android testing
+
 class ExploreTab extends StatefulWidget {
   const ExploreTab({Key? key}) : super(key: key);
 
