@@ -6,7 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-//change localhost:8080 to 10.0.2.2:8080 for android testing
+//change localhost:8080 to 10.0.2.2:8080
 
 class ExploreTab extends StatefulWidget {
   const ExploreTab({Key? key}) : super(key: key);
@@ -20,6 +20,11 @@ class _ExploreTabState extends State<ExploreTab> {
   String? errorMessage;
   String? zipCode;
   List<dynamic> nearbyPlaces = [];
+  List<dynamic> filteredPlaces = []; // For search results
+  final TextEditingController searchController =
+      TextEditingController(); // Search bar controller
+  final TextEditingController zipCodeController = TextEditingController(); // For user input
+
 
   final String apiKeyIOS = 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug';
   final String apiKeyAndroid = 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8';
@@ -42,6 +47,24 @@ class _ExploreTabState extends State<ExploreTab> {
   void initState() {
     super.initState();
     _getCurrentLocation();
+    searchController.addListener(_filterPlaces); // Listen for search input
+    filteredPlaces = List.from(nearbyPlaces); // Initialize filteredPlaces
+  }
+
+  void _filterPlaces() {
+    String query = searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        // Show all places if search bar is empty
+        filteredPlaces = List.from(nearbyPlaces);
+      } else {
+        // Filter the list based on the search query
+        filteredPlaces = nearbyPlaces.where((place) {
+          final name = place['name']?.toLowerCase() ?? '';
+          return name.contains(query);
+        }).toList();
+      }
+    });
   }
 
   Future<void> _getCurrentLocation() async {
@@ -171,6 +194,7 @@ class _ExploreTabState extends State<ExploreTab> {
 
         setState(() {
           nearbyPlaces.addAll(results);
+          filteredPlaces = List.from(nearbyPlaces); // Sync filteredPlaces
         });
 
         if (newNextPageToken != null) {
@@ -195,6 +219,12 @@ class _ExploreTabState extends State<ExploreTab> {
         errorMessage = 'Error: $e';
       });
     }
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose(); // Dispose controller when widget is destroyed
+    super.dispose();
   }
 
   void _onPlaceTap(dynamic place) async {
@@ -322,6 +352,98 @@ class _ExploreTabState extends State<ExploreTab> {
     }
   }
 
+  Future<void> _fetchPlacesByZipCode(String zipCode) async {
+    // Fetch latitude and longitude for the new zip code
+    final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/geocode/json?address=$zipCode&key=$geocodingApiKey');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          final location = data['results'][0]['geometry']['location'];
+          final latitude = location['lat'];
+          final longitude = location['lng'];
+
+          setState(() {
+            currentLocation = LatLng(latitude, longitude);
+            nearbyPlaces.clear(); // Clear old results
+            filteredPlaces.clear(); // Clear filtered results
+          });
+
+          // Fetch new results for the updated location
+          await _fetchNearbyPlaces();
+        } else {
+          setState(() {
+            errorMessage = 'Invalid zip code.';
+          });
+        }
+      } else {
+        setState(() {
+          errorMessage = 'Failed to fetch data. Status code: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error: $e';
+      });
+    }
+  }
+
+
+  void _changeZipCode() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Enter a New Zip Code',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: TextField(
+            controller: zipCodeController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Zip Code',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog without action
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                String newZipCode = zipCodeController.text.trim();
+                if (newZipCode.isNotEmpty) {
+                  setState(() {
+                    zipCode = newZipCode; // Update the displayed zip code
+                  });
+                  _fetchPlacesByZipCode(newZipCode); // Fetch new results
+                }
+                Navigator.of(context).pop(); // Close dialog
+              },
+              child: const Text(
+                'Update',
+                style: TextStyle(color: Colors.blue),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -342,19 +464,48 @@ class _ExploreTabState extends State<ExploreTab> {
             const Text("Fetching your location...",
                 style: TextStyle(fontSize: 16)),
           ] else ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  labelText: 'Search places',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             Text('Places near: ',
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(zipCode ?? 'Fetching zip code...',
-                style: const TextStyle(fontSize: 16)),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                zipCode == null
+                    ? const SizedBox() // Show nothing until zip code is loaded
+                    : Text(zipCode!,
+                    style: const TextStyle(fontSize: 16)),
+                const SizedBox(width: 10),
+                if (zipCode != null)
+                  TextButton(
+                    onPressed: _changeZipCode, // Trigger the change zip code dialog
+                    child: const Text(
+                      'Change',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                  ),
+              ],
+            ),
+
             const SizedBox(height: 20),
             Expanded(
-              child: nearbyPlaces.isEmpty
-                  ? const Text("No places found within 10 miles.")
+              child: filteredPlaces.isEmpty
+                  ? const Text("No places found matching your search.")
                   : ListView.builder(
-                      itemCount: nearbyPlaces.length,
+                      itemCount: filteredPlaces.length,
                       itemBuilder: (context, index) {
-                        final place = nearbyPlaces[index];
+                        final place = filteredPlaces[index];
                         final photoReference = place['photos'] != null
                             ? place['photos'][0]['photo_reference']
                             : null;
