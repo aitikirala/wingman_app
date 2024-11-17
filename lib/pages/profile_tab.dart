@@ -163,7 +163,7 @@ class _ProfileTabState extends State<ProfileTab> {
                     onPressed: () async {
                       await _auth.signOut();
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => HomePage()),
+                        MaterialPageRoute(builder: (context) => FirstScreen()),
                         (Route<dynamic> route) => false,
                       );
                     },

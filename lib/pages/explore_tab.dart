@@ -478,25 +478,36 @@ class _ExploreTabState extends State<ExploreTab> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('Places near: ',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Row(
+            Column(
+              mainAxisSize: MainAxisSize.min, // Shrink vertically to fit content
               children: [
-                zipCode == null
-                    ? const SizedBox() // Show nothing until zip code is loaded
-                    : Text(zipCode!,
-                    style: const TextStyle(fontSize: 16)),
-                const SizedBox(width: 10),
-                if (zipCode != null)
-                  TextButton(
-                    onPressed: _changeZipCode, // Trigger the change zip code dialog
-                    child: const Text(
-                      'Change',
-                      style: TextStyle(color: Colors.blue),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center, // Center horizontally
+                  children: [
+                    const Text(
+                      'Places near: ',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                  ),
+                    if (zipCode != null)
+                      Text(
+                        zipCode!,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    const SizedBox(width: 10), // Space between zip code and button
+                    if (zipCode != null)
+                      TextButton(
+                        onPressed: _changeZipCode, // Open change zip code dialog
+                        child: const Text(
+                          'Change',
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
+
+
 
             const SizedBox(height: 20),
             Expanded(
@@ -521,29 +532,33 @@ class _ExploreTabState extends State<ExploreTab> {
                         return InkWell(
                           onTap: () => _onPlaceTap(place),
                           child: Card(
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            elevation: 6, // Increased elevation for better shadow
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20), // Rounded corners
+                            ),
                             child: Padding(
-                              padding: const EdgeInsets.all(16.0),
+                              padding: const EdgeInsets.all(16.0), // Uniform padding inside the card
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           place['name'] ?? 'No Name',
                                           style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold),
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
                                           place['vicinity'] ?? 'No Address',
                                           style: const TextStyle(
-                                              fontSize: 16, color: Colors.grey),
+                                            fontSize: 16,
+                                            color: Colors.grey,
+                                          ),
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
@@ -556,22 +571,24 @@ class _ExploreTabState extends State<ExploreTab> {
                                   if (photoUrl != null)
                                     Padding(
                                       padding: const EdgeInsets.only(left: 8.0),
-                                      child: Image.network(
-                                        photoUrl,
-                                        width: 100,
-                                        height: 100,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return const Icon(Icons.broken_image,
-                                              size: 100);
-                                        },
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(10), // Rounded corners for image
+                                        child: Image.network(
+                                          photoUrl,
+                                          width: 100,
+                                          height: 100,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return const Icon(Icons.broken_image, size: 100);
+                                          },
+                                        ),
                                       ),
                                     ),
                                 ],
                               ),
                             ),
-                          ),
+                          )
+
                         );
                       },
                     ),

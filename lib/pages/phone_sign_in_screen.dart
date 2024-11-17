@@ -90,7 +90,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
       }, SetOptions(merge: true));
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => MainScreen()),
+        MaterialPageRoute(builder: (context) => NavbarSetup()),
         (Route<dynamic> route) => false,
       );
     }

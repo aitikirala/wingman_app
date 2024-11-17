@@ -10,14 +10,14 @@ import 'package:flutter/foundation.dart';
 import 'navbar_setup.dart';
 import 'phone_sign_in_screen.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class FirstScreen extends StatefulWidget {
+  const FirstScreen({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<FirstScreen> createState() => _FirstScreenState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _FirstScreenState extends State<FirstScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -36,9 +36,18 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return _user != null
-        ? MainScreen()
+        ? NavbarSetup()
         : Container(
-            color: Color(0xFFFF8379), // Background color of the screen
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter, // Starting point of the gradient
+                end: Alignment.bottomCenter, // Ending point of the gradient
+                colors: [
+                  Color(0xFFFF8379), // Coral
+                  Color(0xFFFFE5B4), // Light Peach
+                ],
+              ),
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
