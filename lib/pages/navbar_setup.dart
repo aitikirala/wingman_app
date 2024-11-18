@@ -6,14 +6,14 @@ import 'profile_tab.dart';
 import 'home_tab.dart';
 import 'plan_tab.dart';
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({Key? key}) : super(key: key);
+class NavbarSetup extends StatefulWidget {
+  const NavbarSetup({Key? key}) : super(key: key);
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<NavbarSetup> createState() => _NavbarSetupState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _NavbarSetupState extends State<NavbarSetup> {
   int _selectedIndex = 0;
 
   // List of widgets for each tab

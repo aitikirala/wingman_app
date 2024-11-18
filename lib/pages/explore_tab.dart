@@ -1,3 +1,5 @@
+// explore_tab.dart
+
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -5,8 +7,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'filter_dialog.dart'; // Import the filter dialog
 
-//change localhost:8080 to 10.0.2.2:8080 for android testing
+// Change localhost:8080 to 10.0.2.2:8080 if running on an Android emulator
 
 class ExploreTab extends StatefulWidget {
   const ExploreTab({Key? key}) : super(key: key);
@@ -20,6 +23,10 @@ class _ExploreTabState extends State<ExploreTab> {
   String? errorMessage;
   String? zipCode;
   List<dynamic> nearbyPlaces = [];
+  final TextEditingController searchController =
+      TextEditingController(); // Search bar controller
+  final TextEditingController zipCodeController =
+      TextEditingController(); // For user input
 
   final String apiKeyIOS = 'AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug';
   final String apiKeyAndroid = 'AIzaSyDmEgeulLM-j_ARIW4lZkF9yLNxkUs0HB8';
@@ -38,10 +45,24 @@ class _ExploreTabState extends State<ExploreTab> {
     }
   }
 
+  Set<String> selectedTypes = Set();
+  Set<String> allTypes = Set();
+
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
+    // Update the UI when the search text changes
+    searchController.addListener(() {
+      setState(() {}); // Triggers rebuild to apply filtering
+    });
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose(); // Dispose controller when widget is destroyed
+    zipCodeController.dispose(); // Dispose zip code controller
+    super.dispose();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -171,10 +192,17 @@ class _ExploreTabState extends State<ExploreTab> {
 
         setState(() {
           nearbyPlaces.addAll(results);
+
+          // Update allTypes
+          for (var place in results) {
+            if (place['types'] != null) {
+              allTypes.addAll(List<String>.from(place['types']));
+            }
+          }
         });
 
         if (newNextPageToken != null) {
-          await Future.delayed(Duration(seconds: 2));
+          await Future.delayed(const Duration(seconds: 2));
           await _fetchNearbyPlaces(
             pageToken: newNextPageToken,
             groupIndex: groupIndex,
@@ -183,6 +211,8 @@ class _ExploreTabState extends State<ExploreTab> {
           await _fetchNearbyPlaces(
             groupIndex: newGroupIndex,
           );
+        } else {
+          setState(() {}); // Ensure UI updates after fetching all data
         }
       } else {
         setState(() {
@@ -195,6 +225,43 @@ class _ExploreTabState extends State<ExploreTab> {
         errorMessage = 'Error: $e';
       });
     }
+  }
+
+  void _openFilterDialog() async {
+    final selected = await showDialog<Set<String>>(
+      context: context,
+      builder: (BuildContext context) {
+        return FilterDialog(
+          allTypes: allTypes.toList(),
+          selectedTypes: selectedTypes,
+        );
+      },
+    );
+
+    if (selected != null) {
+      setState(() {
+        selectedTypes = selected;
+      });
+    }
+  }
+
+  // Combined filtering logic for both search text and selected types
+  List<dynamic> get filteredPlaces {
+    String query = searchController.text.toLowerCase();
+    return nearbyPlaces.where((place) {
+      // Apply search filter
+      final name = place['name']?.toLowerCase() ?? '';
+      final matchesSearch = name.contains(query) || query.isEmpty;
+
+      // Apply type filter
+      final types =
+          place['types'] != null ? List<String>.from(place['types']) : [];
+      final matchesFilter = selectedTypes.isEmpty ||
+          types.any((type) => selectedTypes.contains(type));
+
+      // Return true only if both match
+      return matchesSearch && matchesFilter;
+    }).toList();
   }
 
   void _onPlaceTap(dynamic place) async {
@@ -322,89 +389,261 @@ class _ExploreTabState extends State<ExploreTab> {
     }
   }
 
+  Future<void> _fetchPlacesByZipCode(String zipCode) async {
+    // Fetch latitude and longitude for the new zip code
+    final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/geocode/json?address=$zipCode&key=$geocodingApiKey');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          final location = data['results'][0]['geometry']['location'];
+          final latitude = location['lat'];
+          final longitude = location['lng'];
+
+          setState(() {
+            currentLocation = LatLng(latitude, longitude);
+            nearbyPlaces.clear(); // Clear old results
+            filteredPlaces.clear(); // Clear filtered results
+          });
+
+          // Fetch new results for the updated location
+          await _fetchNearbyPlaces();
+        } else {
+          setState(() {
+            errorMessage = 'Invalid zip code.';
+          });
+        }
+      } else {
+        setState(() {
+          errorMessage = 'Failed to fetch data. Status code: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error: $e';
+      });
+    }
+  }
+
+  void _changeZipCode() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Enter a New Zip Code',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: TextField(
+            controller: zipCodeController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Zip Code',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog without action
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                String newZipCode = zipCodeController.text.trim();
+                if (newZipCode.isNotEmpty) {
+                  setState(() {
+                    zipCode = newZipCode; // Update the displayed zip code
+                  });
+                  _fetchPlacesByZipCode(newZipCode); // Fetch new results
+                }
+                Navigator.of(context).pop(); // Close dialog
+              },
+              child: const Text(
+                'Update',
+                style: TextStyle(color: Colors.blue),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 40.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           if (errorMessage != null) ...[
-            Text(
-              errorMessage!,
-              style: const TextStyle(fontSize: 16, color: Colors.red),
-              textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                errorMessage!,
+                style: const TextStyle(fontSize: 16, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
             ),
           ] else if (currentLocation == null) ...[
-            const CircularProgressIndicator(),
+            const Center(child: CircularProgressIndicator()),
             const SizedBox(height: 20),
-            const Text("Fetching your location...",
-                style: TextStyle(fontSize: 16)),
+            const Center(
+              child: Text("Fetching your location...",
+                  style: TextStyle(fontSize: 16)),
+            ),
           ] else ...[
-            Text('Places near: ',
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(zipCode ?? 'Fetching zip code...',
-                style: const TextStyle(fontSize: 16)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const SizedBox(
+                    width: 16), // Add padding to align with search bar
+                Expanded(
+                  child: Text(
+                    'Places near: ${zipCode ?? 'Fetching zip code...'}',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _openFilterDialog,
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  labelText: 'Search places',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Column(
+              mainAxisSize:
+                  MainAxisSize.min, // Shrink vertically to fit content
+              children: [
+                Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.center, // Center horizontally
+                  children: [
+                    const Text(
+                      'Places near: ',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    if (zipCode != null)
+                      Text(
+                        zipCode!,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    const SizedBox(
+                        width: 10), // Space between zip code and button
+                    if (zipCode != null)
+                      TextButton(
+                        onPressed:
+                            _changeZipCode, // Open change zip code dialog
+                        child: const Text(
+                          'Change',
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
             Expanded(
-              child: nearbyPlaces.isEmpty
-                  ? const Text("No places found within 10 miles.")
-                  : ListView.builder(
-                      itemCount: nearbyPlaces.length,
-                      itemBuilder: (context, index) {
-                        final place = nearbyPlaces[index];
-                        final photoReference = place['photos'] != null
-                            ? place['photos'][0]['photo_reference']
-                            : null;
+              child: Builder(
+                builder: (context) {
+                  if (filteredPlaces.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        "No places found matching your search and filter criteria.",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    );
+                  }
 
-                        final photoUrl = photoReference != null
-                            ? Uri.parse('http://localhost:8080/api/proxy/photo')
-                                .replace(queryParameters: {
-                                'photoReference': photoReference,
-                                'apiKey': apiKey,
-                              }).toString()
-                            : null;
+                  return ListView.builder(
+                    itemCount: filteredPlaces.length,
+                    itemBuilder: (context, index) {
+                      final place = filteredPlaces[index];
+                      final photoReference = place['photos'] != null
+                          ? place['photos'][0]['photo_reference']
+                          : null;
 
-                        return InkWell(
-                          onTap: () => _onPlaceTap(place),
-                          child: Card(
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            elevation: 4,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          place['name'] ?? 'No Name',
-                                          style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold),
+                      final photoUrl = photoReference != null
+                          ? Uri.parse('http://localhost:8080/api/proxy/photo')
+                              .replace(queryParameters: {
+                              'photoReference': photoReference,
+                              'apiKey': apiKey,
+                            }).toString()
+                          : null;
+
+                      return InkWell(
+                        onTap: () => _onPlaceTap(place),
+                        child: Card(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          elevation: 6,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        place['name'] ?? 'No Name',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          place['vicinity'] ?? 'No Address',
-                                          style: const TextStyle(
-                                              fontSize: 16, color: Colors.grey),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        place['vicinity'] ?? 'No Address',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
                                         ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Rating: ${place['rating'] ?? 'No Rating'}',
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Rating: ${place['rating'] ?? 'No Rating'}',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ],
                                   ),
-                                  if (photoUrl != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 8.0),
+                                ),
+                                if (photoUrl != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8.0),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
                                       child: Image.network(
                                         photoUrl,
                                         width: 100,
@@ -417,13 +656,16 @@ class _ExploreTabState extends State<ExploreTab> {
                                         },
                                       ),
                                     ),
-                                ],
-                              ),
+                                  ),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ],
