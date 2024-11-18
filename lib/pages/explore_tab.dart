@@ -61,6 +61,7 @@ class _ExploreTabState extends State<ExploreTab> {
   @override
   void dispose() {
     searchController.dispose(); // Dispose controller when widget is destroyed
+    zipCodeController.dispose(); // Dispose zip code controller
     super.dispose();
   }
 
@@ -210,6 +211,8 @@ class _ExploreTabState extends State<ExploreTab> {
           await _fetchNearbyPlaces(
             groupIndex: newGroupIndex,
           );
+        } else {
+          setState(() {}); // Ensure UI updates after fetching all data
         }
       } else {
         setState(() {
@@ -403,9 +406,12 @@ class _ExploreTabState extends State<ExploreTab> {
           setState(() {
             currentLocation = LatLng(latitude, longitude);
             nearbyPlaces.clear(); // Clear old results
+            allTypes.clear(); // Clear old types
+            selectedTypes.clear(); // Reset selected filters
+            searchController.clear(); // Clear search text
+            errorMessage = null; // Reset error message
           });
 
-          // Fetch new results for the updated location
           await _fetchNearbyPlaces();
         } else {
           setState(() {
@@ -426,6 +432,7 @@ class _ExploreTabState extends State<ExploreTab> {
   }
 
   void _changeZipCode() {
+    zipCodeController.text = zipCode ?? ''; // Pre-fill current zip code
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -485,22 +492,34 @@ class _ExploreTabState extends State<ExploreTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (errorMessage != null) ...[
-            Text(
-              errorMessage!,
-              style: const TextStyle(fontSize: 16, color: Colors.red),
-              textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                errorMessage!,
+                style: const TextStyle(fontSize: 16, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
             ),
           ] else if (currentLocation == null) ...[
-            const CircularProgressIndicator(),
+            const Center(child: CircularProgressIndicator()),
             const SizedBox(height: 20),
-            const Text("Fetching your location...",
-                style: TextStyle(fontSize: 16)),
+            const Center(
+              child: Text("Fetching your location...",
+                  style: TextStyle(fontSize: 16)),
+            ),
           ] else ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const SizedBox(
                     width: 16), // Add padding to align with search bar
+                Expanded(
+                  child: Text(
+                    'Places near: ${zipCode ?? 'Fetching zip code...'}',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.filter_list),
                   onPressed: _openFilterDialog,
