@@ -406,12 +406,10 @@ class _ExploreTabState extends State<ExploreTab> {
           setState(() {
             currentLocation = LatLng(latitude, longitude);
             nearbyPlaces.clear(); // Clear old results
-            allTypes.clear(); // Clear old types
-            selectedTypes.clear(); // Reset selected filters
-            searchController.clear(); // Clear search text
-            errorMessage = null; // Reset error message
+            filteredPlaces.clear(); // Clear filtered results
           });
 
+          // Fetch new results for the updated location
           await _fetchNearbyPlaces();
         } else {
           setState(() {
@@ -420,8 +418,7 @@ class _ExploreTabState extends State<ExploreTab> {
         }
       } else {
         setState(() {
-          errorMessage =
-              'Failed to fetch data. Status code: ${response.statusCode}';
+          errorMessage = 'Failed to fetch data. Status code: ${response.statusCode}';
         });
       }
     } catch (e) {
@@ -432,7 +429,6 @@ class _ExploreTabState extends State<ExploreTab> {
   }
 
   void _changeZipCode() {
-    zipCodeController.text = zipCode ?? ''; // Pre-fill current zip code
     showDialog(
       context: context,
       builder: (BuildContext context) {
