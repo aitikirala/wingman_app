@@ -1,4 +1,5 @@
 // services/place_service.dart
+// When running android: 10.0.2.2:8080 replaces localhost:8080
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';

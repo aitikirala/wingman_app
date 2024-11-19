@@ -1,4 +1,5 @@
 // explore_tab.dart
+// When running android: 10.0.2.2:8080 replaces localhost:8080
 
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -339,106 +340,116 @@ class _ExploreTabState extends State<ExploreTab> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 40.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (errorMessage != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                errorMessage!,
-                style: const TextStyle(fontSize: 16, color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ] else if (currentLocation == null) ...[
-            const Center(child: CircularProgressIndicator()),
-            const SizedBox(height: 20),
-            const Center(
-              child: Text("Fetching your location...",
-                  style: TextStyle(fontSize: 16)),
-            ),
-          ] else ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const SizedBox(
-                    width: 16), // Add padding to align with search bar
-                Expanded(
-                  child: Text(
-                    'Places near: ${displayedLocation ?? 'Fetching location...'}',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.filter_list),
-                  onPressed: _openFilterDialog,
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: TextField(
-                controller: searchController,
-                decoration: InputDecoration(
-                  labelText: 'Search places',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+      padding:
+          const EdgeInsets.only(top: 20.0), // Adjust padding for overall layout
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (errorMessage != null) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  errorMessage!,
+                  style: const TextStyle(fontSize: 16, color: Colors.red),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Column(
-              mainAxisSize:
-                  MainAxisSize.min, // Shrink vertically to fit content
-              children: [
-                Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center, // Center horizontally
+            ] else if (currentLocation == null) ...[
+              const Center(child: CircularProgressIndicator()),
+              const SizedBox(height: 20),
+              const Center(
+                child: Text("Fetching your location...",
+                    style: TextStyle(fontSize: 16)),
+              ),
+            ] else ...[
+              const SizedBox(height: 10), // Add spacing before search bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
                   children: [
-                    const Text(
-                      'Places near: ',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    if (displayedLocation != null)
-                      Text(
-                        displayedLocation!,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    const SizedBox(
-                        width: 10), // Space between location and button
-                    if (displayedLocation != null)
-                      TextButton(
-                        onPressed:
-                            _changeLocation, // Open change location dialog
-                        child: const Text(
-                          'Change',
-                          style: TextStyle(color: Colors.blue),
+                    Expanded(
+                      child: TextField(
+                        controller: searchController,
+                        decoration: InputDecoration(
+                          labelText: 'Search places',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
+                    ),
+                    const SizedBox(
+                        width: 8), // Space between search bar and filter button
+                    IconButton(
+                      icon: const Icon(Icons.filter_list),
+                      onPressed: _openFilterDialog,
+                    ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: Builder(
+              ),
+              const SizedBox(
+                  height: 15), // Adjust spacing between search bar and content
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Places near: ',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            displayedLocation ?? '',
+                            style: const TextStyle(fontSize: 16),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2, // Allow text to wrap
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (displayedLocation != null) ...[
+                      const SizedBox(
+                          height: 5), // Space between text and button
+                      Center(
+                        child: TextButton(
+                          onPressed: _changeLocation,
+                          child: const Text(
+                            'Change',
+                            style: TextStyle(color: Colors.blue),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Builder(
                 builder: (context) {
                   if (filteredPlaces.isEmpty) {
                     return const Center(
-                      child: Text(
-                        "No places found matching your search and filter criteria.",
-                        style: TextStyle(fontSize: 16),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text(
+                          "No places found matching your search and filter criteria.",
+                          style: TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     );
                   }
 
                   return ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     itemCount: filteredPlaces.length,
                     itemBuilder: (context, index) {
                       final place = filteredPlaces[index];
@@ -450,9 +461,9 @@ class _ExploreTabState extends State<ExploreTab> {
                   );
                 },
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
