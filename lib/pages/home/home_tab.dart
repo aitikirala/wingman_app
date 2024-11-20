@@ -13,6 +13,8 @@ class _HomeTabState extends State<HomeTab> {
   List<Map<String, dynamic>> favorites = [];
   bool isLoading = true;
 
+  bool hasNotifications = false; // Tracks if there are any friend requests
+
   // Search functionality
   final TextEditingController _searchController = TextEditingController();
   Map<String, dynamic>? _searchResult;
@@ -22,12 +24,33 @@ class _HomeTabState extends State<HomeTab> {
   void initState() {
     super.initState();
     fetchFavorites();
+    _listenForFriendRequests();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _listenForFriendRequests() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) return;
+
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final requestsReceived =
+            List<String>.from(snapshot.data()?['requestsReceived'] ?? []);
+        setState(() {
+          hasNotifications = requestsReceived.isNotEmpty;
+        });
+      }
+    });
   }
 
   Future<void> fetchFavorites() async {
@@ -279,47 +302,78 @@ class _HomeTabState extends State<HomeTab> {
     }
 
     if (_searchResult != null) {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        return const Text('Please log in to search users.');
+      }
+
+      return FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final currentUserData = snapshot.data!.data() as Map<String, dynamic>;
+          final requestsSent =
+              List<String>.from(currentUserData['requestsSent'] ?? []);
+          final recipientId = _searchResult!['uid'];
+
+          final isRequestSent = requestsSent.contains(recipientId);
+
+          return Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (_searchResult!['photoURL'] != null)
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundImage: NetworkImage(_searchResult!['photoURL']),
-                  ),
-                const SizedBox(height: 16),
-                Text(
-                  _searchResult!['firstName'] ?? 'Unknown Name',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (_searchResult!['photoURL'] != null)
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundImage:
+                            NetworkImage(_searchResult!['photoURL']),
+                      ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _searchResult!['firstName'] ?? 'Unknown Name',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _searchResult!['email'] ??
+                          _searchResult!['phoneNumber'] ??
+                          '',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 16),
+                    isRequestSent
+                        ? ElevatedButton(
+                            onPressed: () => _showWaitingDialog(),
+                            child: const Text('Waiting'),
+                          )
+                        : ElevatedButton(
+                            onPressed: () => _sendFriendRequest(recipientId),
+                            child: const Text('Add Friend'),
+                          ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _searchResult!['email'] ??
-                      _searchResult!['phoneNumber'] ??
-                      '',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _sendFriendRequest(_searchResult!['uid']),
-                  child: const Text('Send Friend Request'),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       );
     }
 
@@ -354,9 +408,26 @@ class _HomeTabState extends State<HomeTab> {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.mail),
-            onPressed: _showFriendRequests,
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.mail),
+                onPressed: _showFriendRequests,
+              ),
+              if (hasNotifications)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -545,7 +616,7 @@ class _HomeTabState extends State<HomeTab> {
         'requestsReceived': FieldValue.arrayUnion([currentUserId])
       });
 
-      // Optionally: Add the recipient's ID to the current user's requestsSent array
+      // Add the recipient's ID to the current user's requestsSent array
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUserId)
@@ -563,6 +634,27 @@ class _HomeTabState extends State<HomeTab> {
             content: Text('Failed to send friend request. Please try again.')),
       );
     }
+  }
+
+  void _showWaitingDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Friend Request Sent'),
+          content: const Text(
+              'You have already sent a friend request. We are waiting on their response.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close the dialog
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
