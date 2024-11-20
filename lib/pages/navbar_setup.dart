@@ -1,5 +1,6 @@
-// main_screen.dart
+//navbar.dart
 import 'package:flutter/material.dart';
+import 'package:wingman_app/pages/search/search_tab.dart';
 
 import 'explore/explore_tab.dart';
 import 'profile/profile_tab.dart';
@@ -19,6 +20,7 @@ class _NavbarSetupState extends State<NavbarSetup> {
   // List of widgets for each tab
   static List<Widget> _widgetOptions = <Widget>[
     HomeTab(),
+    SearchTab(),
     ExploreTab(),
     PlanTab(),
     ProfileTab(),
@@ -41,6 +43,10 @@ class _NavbarSetupState extends State<NavbarSetup> {
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.explore),
