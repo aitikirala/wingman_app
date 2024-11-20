@@ -198,8 +198,17 @@ class _ExploreTabState extends State<ExploreTab> {
     );
     final phoneNumber =
         placeDetails['formatted_phone_number'] ?? 'No Phone Number';
-    final openingHours = placeDetails['opening_hours']?['weekday_text'] ??
-        ['No hours available'];
+    final openingHours = (placeDetails['opening_hours']?['weekday_text'] ??
+            ['No hours available'])
+        .map((hour) {
+      // Insert a dash between times if it's missing
+      final formattedHour = hour.replaceAll(RegExp(r'[^\x00-\x7F]'), '');
+      return formattedHour.replaceAllMapped(
+        RegExp(r'(\d{1,2}:\d{2}[AP]M)(\d{1,2}:\d{2}[AP]M)'),
+        (match) => '${match.group(1)} - ${match.group(2)}',
+      );
+    }).toList();
+
     final photoReference = placeDetails['photos'] != null
         ? placeDetails['photos'][0]['photo_reference']
         : null;
