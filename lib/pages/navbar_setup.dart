@@ -1,10 +1,10 @@
 // main_screen.dart
 import 'package:flutter/material.dart';
 
-import 'explore_tab.dart';
-import 'profile_tab.dart';
-import 'home_tab.dart';
-import 'plan_tab.dart';
+import 'explore/explore_tab.dart';
+import 'profile/profile_tab.dart';
+import 'home/home_tab.dart';
+import 'plan/plan_tab.dart';
 
 class NavbarSetup extends StatefulWidget {
   const NavbarSetup({Key? key}) : super(key: key);

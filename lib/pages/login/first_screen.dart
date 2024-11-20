@@ -7,7 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_button/sign_in_button.dart';
 import 'package:flutter/foundation.dart';
 
-import 'navbar_setup.dart';
+import '../navbar_setup.dart';
 import 'phone_sign_in_screen.dart';
 
 class FirstScreen extends StatefulWidget {
