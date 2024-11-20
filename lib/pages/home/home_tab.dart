@@ -545,7 +545,7 @@ class _HomeTabState extends State<HomeTab> {
           .update({
         'friends': FieldValue.arrayUnion([senderId]),
         'requestsReceived':
-            FieldValue.arrayRemove([senderId]), // Remove from requestsReceived
+            FieldValue.arrayRemove([senderId]) // Remove from requestsReceived
       });
 
       // Add current user to sender's friends list
@@ -554,6 +554,8 @@ class _HomeTabState extends State<HomeTab> {
           .doc(senderId)
           .update({
         'friends': FieldValue.arrayUnion([currentUserId]),
+        'requestsSent': FieldValue.arrayRemove(
+            [currentUserId]) // Remove from sender's requestsSent
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
