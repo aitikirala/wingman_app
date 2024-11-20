@@ -1,4 +1,3 @@
-// profile_tab.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +23,7 @@ class _ProfileTabState extends State<ProfileTab> {
   final TextEditingController _dobController = TextEditingController();
 
   bool _controllersInitialized = false;
+  bool _isEditing = false; // Toggle between view and edit mode
 
   @override
   void initState() {
@@ -52,8 +52,11 @@ class _ProfileTabState extends State<ProfileTab> {
           'dob': _dobController.text.trim(),
         }, SetOptions(merge: true));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Profile updated')),
+          const SnackBar(content: Text('Profile updated')),
         );
+        setState(() {
+          _isEditing = false; // Exit edit mode after saving
+        });
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error updating profile: $e')),
@@ -68,10 +71,10 @@ class _ProfileTabState extends State<ProfileTab> {
       future: _userDocFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return Center(child: Text('No user data found'));
+          return const Center(child: Text('No user data found'));
         }
         Map<String, dynamic> userData =
             snapshot.data!.data() as Map<String, dynamic>;
@@ -91,74 +94,91 @@ class _ProfileTabState extends State<ProfileTab> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(height: 40),
+                  const SizedBox(height: 40),
                   if (userData['photoURL'] != null)
                     CircleAvatar(
                       radius: 50,
                       backgroundImage: NetworkImage(userData['photoURL']),
                     ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Text(
-                    userData['displayName'] ?? '',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    '${userData['firstName'] ?? 'N/A'}',
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
-                  Text(
-                    userData['email'] ?? userData['phoneNumber'] ?? '',
-                    style: TextStyle(fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 20),
-                  TextField(
-                    controller: _firstNameController,
-                    decoration: InputDecoration(labelText: 'First Name'),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 10),
-                  TextField(
-                    controller: _lastNameController,
-                    decoration: InputDecoration(labelText: 'Last Name'),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 10),
-                  TextField(
-                    controller: _dobController,
-                    decoration: InputDecoration(labelText: 'Date of Birth'),
-                    textAlign: TextAlign.center,
-                    readOnly: true,
-                    onTap: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.tryParse(_dobController.text) ??
-                            DateTime.now(),
-                        firstDate: DateTime(1900),
-                        lastDate: DateTime.now(),
-                      );
-                      if (pickedDate != null) {
-                        setState(() {
-                          _dobController.text =
-                              "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
-                        });
-                      }
-                    },
-                  ),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _saveProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        side: BorderSide(color: Colors.white),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 40, vertical: 16),
+                  const SizedBox(height: 20),
+                  if (!_isEditing)
+                    Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _isEditing = true; // Enter edit mode
+                            });
+                          },
+                          child: const Text('Edit Profile'),
+                        ),
+                      ],
+                    )
+                  else
+                    Column(
+                      children: [
+                        TextField(
+                          controller: _firstNameController,
+                          decoration:
+                              const InputDecoration(labelText: 'First Name'),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _lastNameController,
+                          decoration:
+                              const InputDecoration(labelText: 'Last Name'),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _dobController,
+                          decoration:
+                              const InputDecoration(labelText: 'Date of Birth'),
+                          textAlign: TextAlign.center,
+                          readOnly: true,
+                          onTap: () async {
+                            DateTime? pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate:
+                                  DateTime.tryParse(_dobController.text) ??
+                                      DateTime.now(),
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime.now(),
+                            );
+                            if (pickedDate != null) {
+                              setState(() {
+                                _dobController.text =
+                                    "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _saveProfile,
+                          child: const Text('Save'),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _isEditing = false; // Cancel edit mode
+                            });
+                          },
+                          child: const Text('Cancel'),
+                        ),
+                      ],
                     ),
-                    child: Text('Save'),
-                  ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () async {
                       await _auth.signOut();
@@ -167,20 +187,9 @@ class _ProfileTabState extends State<ProfileTab> {
                         (Route<dynamic> route) => false,
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        side: BorderSide(color: Colors.white),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 40, vertical: 16),
-                    ),
-                    child: Text('Sign Out'),
+                    child: const Text('Sign Out'),
                   ),
-                  SizedBox(height: 40),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
