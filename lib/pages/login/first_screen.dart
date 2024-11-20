@@ -203,6 +203,8 @@ class _FirstScreenState extends State<FirstScreen> {
           'provider': 'google',
           'favorites': FieldValue.arrayUnion([]),
           'friends': FieldValue.arrayUnion([]),
+          'requestsSent': FieldValue.arrayUnion([]),
+          'requestsReceived': FieldValue.arrayUnion([]),
         }, SetOptions(merge: true));
       }
     } catch (error) {

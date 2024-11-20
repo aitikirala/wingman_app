@@ -89,6 +89,8 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
         'provider': 'phone',
         'favorites': FieldValue.arrayUnion([]),
         'friends': FieldValue.arrayUnion([]),
+        'requestsSent': FieldValue.arrayUnion([]),
+        'requestsReceived': FieldValue.arrayUnion([]),
       }, SetOptions(merge: true));
 
       Navigator.of(context).pushAndRemoveUntil(
