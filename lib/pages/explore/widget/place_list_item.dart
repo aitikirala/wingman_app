@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:wingman_app/pages/explore/service/place_service.dart';
 
@@ -18,10 +20,120 @@ class PlaceListItem extends StatefulWidget {
 class _PlaceListItemState extends State<PlaceListItem> {
   bool isFavorite = false;
 
-  void toggleFavorite() {
+  @override
+  void initState() {
+    super.initState();
+    checkIfFavorite();
+  }
+
+  void checkIfFavorite() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      print('User not logged in!');
+      return;
+    }
+
+    final userId = user.uid;
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
+
+    try {
+      // Fetch the user's favorites
+      final snapshot = await userDoc.get();
+      if (!snapshot.exists) {
+        print("User document does not exist!");
+        return;
+      }
+
+      final favorites =
+          List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
+
+      // Check if the current place exists in favorites
+      final favoriteData = {
+        'name': widget.place['name'] ?? 'Unknown Name',
+        'address': widget.place['vicinity'] ?? 'Unknown Address',
+      };
+
+      final exists = favorites.any((favorite) =>
+          favorite['name'] == favoriteData['name'] &&
+          favorite['address'] == favoriteData['address']);
+
+      setState(() {
+        isFavorite = exists;
+      });
+    } catch (e) {
+      print("Error checking favorites: $e");
+    }
+  }
+
+  void toggleFavorite() async {
+    // Optimistically update UI
     setState(() {
       isFavorite = !isFavorite;
     });
+
+    // Get the currently logged-in user's ID
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      print('User not logged in!');
+      setState(() {
+        isFavorite = !isFavorite; // Revert the state
+      });
+      return;
+    }
+
+    final userId = user.uid; // Use the user's ID as the document ID
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
+
+    // Create the data to be added/removed to/from the favorites array
+    final favoriteData = {
+      'name': widget.place['name'] ?? 'Unknown Name',
+      'address': widget.place['vicinity'] ?? 'Unknown Address',
+    };
+
+    try {
+      // Get the current favorites array
+      final snapshot = await userDoc.get();
+      if (!snapshot.exists) {
+        print("User document does not exist!");
+        return;
+      }
+
+      final favorites =
+          List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
+
+      // Check if the item already exists in the array
+      final exists = favorites.any((favorite) =>
+          favorite['name'] == favoriteData['name'] &&
+          favorite['address'] == favoriteData['address']);
+
+      if (exists) {
+        // If it exists, remove it
+        await userDoc.update({
+          'favorites': FieldValue.arrayRemove([favoriteData]),
+        });
+        setState(() {
+          isFavorite = false; // Update UI state
+        });
+        print('Removed from favorites.');
+      } else {
+        // If it doesn’t exist, add it
+        await userDoc.update({
+          'favorites': FieldValue.arrayUnion([favoriteData]),
+        });
+        setState(() {
+          isFavorite = true; // Update UI state
+        });
+        print('Added to favorites.');
+      }
+    } catch (e) {
+      print("Error updating favorites: $e");
+      setState(() {
+        isFavorite =
+            !isFavorite; // Revert the state change if there is an error
+      });
+    }
   }
 
   @override

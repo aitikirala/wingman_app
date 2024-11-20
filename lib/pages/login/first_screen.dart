@@ -201,6 +201,10 @@ class _FirstScreenState extends State<FirstScreen> {
           'photoURL': user.photoURL,
           'lastSignInTime': FieldValue.serverTimestamp(),
           'provider': 'google',
+          'favorites': FieldValue.arrayUnion([]),
+          'friends': FieldValue.arrayUnion([]),
+          'requestsSent': FieldValue.arrayUnion([]),
+          'requestsReceived': FieldValue.arrayUnion([]),
         }, SetOptions(merge: true));
       }
     } catch (error) {
