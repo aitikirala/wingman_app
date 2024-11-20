@@ -87,6 +87,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
         'phoneNumber': user.phoneNumber,
         'lastSignInTime': FieldValue.serverTimestamp(),
         'provider': 'phone',
+        'favorites': [],
       }, SetOptions(merge: true));
 
       Navigator.of(context).pushAndRemoveUntil(
@@ -113,7 +114,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                   controller: _phoneNumberController,
                   decoration: InputDecoration(
                     labelText: 'Phone Number',
-                    hintText: '+1234567890',
+                    hintText: '+1 123-456-7890',
                   ),
                   keyboardType: TextInputType.phone,
                 ),
