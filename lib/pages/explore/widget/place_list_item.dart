@@ -1,9 +1,7 @@
-// widgets/place_list_item.dart
-
 import 'package:flutter/material.dart';
 import 'package:wingman_app/pages/explore/service/place_service.dart';
 
-class PlaceListItem extends StatelessWidget {
+class PlaceListItem extends StatefulWidget {
   final dynamic place;
   final VoidCallback onTap;
 
@@ -14,17 +12,30 @@ class PlaceListItem extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final photoReference =
-        place['photos'] != null ? place['photos'][0]['photo_reference'] : null;
+  _PlaceListItemState createState() => _PlaceListItemState();
+}
 
-    // Platform is not needed here as getPhotoUrl now uses the server URL
+class _PlaceListItemState extends State<PlaceListItem> {
+  bool isFavorite = false;
+
+  void toggleFavorite() {
+    setState(() {
+      isFavorite = !isFavorite;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photoReference = widget.place['photos'] != null
+        ? widget.place['photos'][0]['photo_reference']
+        : null;
+
     final photoUrl = photoReference != null
         ? PlaceService.getPhotoUrl(photoReference, 'web')
         : null;
 
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         elevation: 6,
@@ -40,7 +51,7 @@ class PlaceListItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      place['name'] ?? 'No Name',
+                      widget.place['name'] ?? 'No Name',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -48,7 +59,7 @@ class PlaceListItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      place['vicinity'] ?? 'No Address',
+                      widget.place['vicinity'] ?? 'No Address',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.grey,
@@ -56,7 +67,7 @@ class PlaceListItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Rating: ${place['rating'] ?? 'No Rating'}',
+                      'Rating: ${widget.place['rating'] ?? 'No Rating'}',
                       style: const TextStyle(fontSize: 14),
                     ),
                   ],
@@ -78,6 +89,13 @@ class PlaceListItem extends StatelessWidget {
                     ),
                   ),
                 ),
+              IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: isFavorite ? Colors.red : Colors.grey,
+                ),
+                onPressed: toggleFavorite,
+              ),
             ],
           ),
         ),
