@@ -341,7 +341,7 @@ class _ExploreTabState extends State<ExploreTab> {
   Widget build(BuildContext context) {
     return Padding(
       padding:
-          const EdgeInsets.only(top: 20.0), // Adjust padding for overall layout
+          const EdgeInsets.only(top: 50.0), // Adjust padding for overall layout
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
