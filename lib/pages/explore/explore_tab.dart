@@ -426,8 +426,6 @@ class _ExploreTabState extends State<ExploreTab> {
                       ],
                     ),
                     if (displayedLocation != null) ...[
-                      const SizedBox(
-                          height: 5), // Space between text and button
                       Center(
                         child: TextButton(
                           onPressed: _changeLocation,
@@ -443,31 +441,32 @@ class _ExploreTabState extends State<ExploreTab> {
               ),
               Builder(
                 builder: (context) {
+                  //the if causes the space after change
                   if (filteredPlaces.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: const Text(
                           "No places found matching your search and filter criteria.",
                           style: TextStyle(fontSize: 16),
                           textAlign: TextAlign.center,
                         ),
                       ),
                     );
+                  } else {
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filteredPlaces.length,
+                      itemBuilder: (context, index) {
+                        final place = filteredPlaces[index];
+                        return PlaceListItem(
+                          place: place,
+                          onTap: () => _onPlaceTap(place),
+                        );
+                      },
+                    );
                   }
-
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filteredPlaces.length,
-                    itemBuilder: (context, index) {
-                      final place = filteredPlaces[index];
-                      return PlaceListItem(
-                        place: place,
-                        onTap: () => _onPlaceTap(place),
-                      );
-                    },
-                  );
                 },
               ),
             ],
