@@ -87,7 +87,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
         'phoneNumber': user.phoneNumber,
         'lastSignInTime': FieldValue.serverTimestamp(),
         'provider': 'phone',
-        'favorites': [],
+        'favorites': FieldValue.arrayUnion([]),
       }, SetOptions(merge: true));
 
       Navigator.of(context).pushAndRemoveUntil(

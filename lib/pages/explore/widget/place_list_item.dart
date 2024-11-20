@@ -21,6 +21,7 @@ class _PlaceListItemState extends State<PlaceListItem> {
   bool isFavorite = false;
 
   void toggleFavorite() async {
+    // Optimistically update UI
     setState(() {
       isFavorite = !isFavorite;
     });
@@ -37,26 +38,48 @@ class _PlaceListItemState extends State<PlaceListItem> {
     }
 
     final userId = user.uid; // Use the user's ID as the document ID
-    print("The userid: $userId");
     final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
 
-    // Create the data to be added to the favorites array
+    // Create the data to be added/removed to/from the favorites array
     final favoriteData = {
       'name': widget.place['name'] ?? 'Unknown Name',
       'address': widget.place['vicinity'] ?? 'Unknown Address',
     };
 
     try {
-      if (isFavorite) {
-        // Add the place to the favorites array
+      // Get the current favorites array
+      final snapshot = await userDoc.get();
+      if (!snapshot.exists) {
+        print("User document does not exist!");
+        return;
+      }
+
+      final favorites =
+          List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
+
+      // Check if the item already exists in the array
+      final exists = favorites.any((favorite) =>
+          favorite['name'] == favoriteData['name'] &&
+          favorite['address'] == favoriteData['address']);
+
+      if (exists) {
+        // If it exists, remove it
         await userDoc.update({
-          'favorites': FieldValue.arrayUnion([favoriteData])
+          'favorites': FieldValue.arrayRemove([favoriteData]),
         });
+        setState(() {
+          isFavorite = false; // Update UI state
+        });
+        print('Removed from favorites.');
       } else {
-        // Remove the place from the favorites array
+        // If it doesn’t exist, add it
         await userDoc.update({
-          'favorites': FieldValue.arrayRemove([favoriteData])
+          'favorites': FieldValue.arrayUnion([favoriteData]),
         });
+        setState(() {
+          isFavorite = true; // Update UI state
+        });
+        print('Added to favorites.');
       }
     } catch (e) {
       print("Error updating favorites: $e");
