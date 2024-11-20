@@ -20,6 +20,52 @@ class PlaceListItem extends StatefulWidget {
 class _PlaceListItemState extends State<PlaceListItem> {
   bool isFavorite = false;
 
+  @override
+  void initState() {
+    super.initState();
+    checkIfFavorite();
+  }
+
+  void checkIfFavorite() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      print('User not logged in!');
+      return;
+    }
+
+    final userId = user.uid;
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
+
+    try {
+      // Fetch the user's favorites
+      final snapshot = await userDoc.get();
+      if (!snapshot.exists) {
+        print("User document does not exist!");
+        return;
+      }
+
+      final favorites =
+          List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
+
+      // Check if the current place exists in favorites
+      final favoriteData = {
+        'name': widget.place['name'] ?? 'Unknown Name',
+        'address': widget.place['vicinity'] ?? 'Unknown Address',
+      };
+
+      final exists = favorites.any((favorite) =>
+          favorite['name'] == favoriteData['name'] &&
+          favorite['address'] == favoriteData['address']);
+
+      setState(() {
+        isFavorite = exists;
+      });
+    } catch (e) {
+      print("Error checking favorites: $e");
+    }
+  }
+
   void toggleFavorite() async {
     // Optimistically update UI
     setState(() {
