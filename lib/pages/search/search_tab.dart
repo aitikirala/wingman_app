@@ -324,6 +324,8 @@ class _SearchTabState extends State<SearchTab> {
               List<String>.from(currentUserData['followers'] ?? []);
           final currentUserFollowing =
               List<String>.from(currentUserData['following'] ?? []);
+          final requestsSent =
+              List<String>.from(currentUserData['requestsSent'] ?? []);
           final recipientId = _searchResult!['uid'];
 
           return FutureBuilder<DocumentSnapshot>(
@@ -340,13 +342,14 @@ class _SearchTabState extends State<SearchTab> {
                   recipientSnapshot.data!.data() as Map<String, dynamic>;
               final recipientFollowers =
                   List<String>.from(recipientData['followers'] ?? []);
-              final recipientFollowing =
-                  List<String>.from(recipientData['following'] ?? []);
 
               // Check for mutual following
               final isMutualFriend =
                   currentUserFollowers.contains(recipientId) &&
                       recipientFollowers.contains(currentUser.uid);
+
+              // Check if a request has been sent
+              final isRequestSent = requestsSent.contains(recipientId);
 
               return Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -391,7 +394,7 @@ class _SearchTabState extends State<SearchTab> {
                               color: Colors.green,
                             ),
                           )
-                        else if (currentUserFollowing.contains(recipientId))
+                        else if (isRequestSent)
                           ElevatedButton(
                             onPressed: () => _showWaitingDialog(),
                             child: const Text('Waiting'),
