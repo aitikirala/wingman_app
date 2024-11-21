@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:wingman_app/pages/search/friend_requests.dart';
 
 class SearchTab extends StatefulWidget {
   const SearchTab({Key? key}) : super(key: key);
@@ -458,87 +459,14 @@ class _SearchTabState extends State<SearchTab> {
       final requestsReceived =
           List<String>.from(userDoc.data()?['requestsReceived'] ?? []);
 
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (BuildContext context) {
-          return Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            padding: const EdgeInsets.all(16.0),
-            child: requestsReceived.isNotEmpty
-                ? ListView.builder(
-                    itemCount: requestsReceived.length,
-                    itemBuilder: (context, index) {
-                      final requesterId = requestsReceived[index];
-                      return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(requesterId)
-                            .get(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
-
-                          final requesterData =
-                              snapshot.data!.data() as Map<String, dynamic>;
-
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            elevation: 4,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundImage: requesterData['photoURL'] !=
-                                        null
-                                    ? NetworkImage(requesterData['photoURL'])
-                                    : null,
-                                child: requesterData['photoURL'] == null
-                                    ? const Icon(Icons.person)
-                                    : null,
-                              ),
-                              title:
-                                  Text(requesterData['firstName'] ?? 'Unknown'),
-                              subtitle:
-                                  Text(requesterData['email'] ?? 'No Email'),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.check,
-                                        color: Colors.green),
-                                    onPressed: () =>
-                                        _acceptFriendRequest(requesterId),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.close,
-                                        color: Colors.red),
-                                    onPressed: () =>
-                                        _denyFriendRequest(requesterId),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  )
-                : const Center(
-                    child: Text(
-                      'No friend requests.',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-          );
-        },
+      // Navigate to the Friend Requests Page
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FriendRequestsPage(
+            requestsReceived: requestsReceived,
+          ),
+        ),
       );
     }
   }
@@ -674,6 +602,7 @@ class _SearchTabState extends State<SearchTab> {
   @override
   Widget build(BuildContext context) {
     return Column(children: [
+      const SizedBox(height: 50), // Adds spacing at the top
       _buildSearchBar(),
       _buildSearchResult(),
       const SizedBox(height: 20),
