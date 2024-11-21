@@ -2,9 +2,10 @@
 // When running android: 10.0.2.2:8080 replaces localhost:8080
 
 import 'dart:io' show Platform;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter_google_places/flutter_google_places.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_webservice/places.dart';
 import 'package:wingman_app/pages/explore/service/location_service.dart';
@@ -31,6 +32,9 @@ class _ExploreTabState extends State<ExploreTab> {
   Set<String> selectedTypes = Set();
   Set<String> allTypes = Set();
 
+  List<dynamic> favorites = []; // Holds favorite places
+  bool isLoadingFavorites = true; // Tracks loading state for favorites
+
   // Determine the platform
   String get platform {
     if (kIsWeb) {
@@ -44,10 +48,6 @@ class _ExploreTabState extends State<ExploreTab> {
     }
   }
 
-  // Initialize Google Maps Places with an empty API key
-  // The actual API calls will be routed through the backend proxy
-  final GoogleMapsPlaces _places = GoogleMapsPlaces(apiKey: '');
-
   @override
   void initState() {
     super.initState();
@@ -56,12 +56,114 @@ class _ExploreTabState extends State<ExploreTab> {
     searchController.addListener(() {
       setState(() {}); // Triggers rebuild to apply filtering
     });
+
+    _listenToFavorites(); // Set up the listener
   }
 
   @override
   void dispose() {
     searchController.dispose(); // Dispose controller when widget is destroyed
     super.dispose();
+  }
+
+  void _listenToFavorites() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        setState(() {
+          favorites = snapshot.data()?['favorites'] ?? [];
+          isLoadingFavorites = false;
+        });
+      } else {
+        setState(() {
+          favorites = [];
+          isLoadingFavorites = false;
+        });
+      }
+    }, onError: (e) {
+      print('Error listening to favorites: $e');
+      setState(() {
+        favorites = [];
+        isLoadingFavorites = false;
+      });
+    });
+  }
+
+  Widget _buildFavoritesTab() {
+    if (isLoadingFavorites) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (favorites.isEmpty) {
+      return const Center(
+        child: Text(
+          'No favorites added yet.',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: favorites.length,
+      itemBuilder: (context, index) {
+        final favorite = favorites[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                if (favorite['photoUrl'] != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      favorite['photoUrl'],
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.broken_image, size: 80),
+                    ),
+                  ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        favorite['name'] ?? 'Unnamed Place',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        favorite['address'] ?? 'No Address Available',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _getCurrentLocation() async {
@@ -348,10 +450,11 @@ class _ExploreTabState extends State<ExploreTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(top: 50.0), // Adjust padding for overall layout
-      child: SingleChildScrollView(
+    return DefaultTabController(
+      length: 2, // Two tabs: Places Near You and Favorites
+      child: Padding(
+        padding: const EdgeInsets.only(
+            top: 50.0), // Adjust padding for overall layout
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -368,8 +471,10 @@ class _ExploreTabState extends State<ExploreTab> {
               const Center(child: CircularProgressIndicator()),
               const SizedBox(height: 20),
               const Center(
-                child: Text("Fetching your location...",
-                    style: TextStyle(fontSize: 16)),
+                child: Text(
+                  "Fetching your location...",
+                  style: TextStyle(fontSize: 16),
+                ),
               ),
             ] else ...[
               const SizedBox(height: 10), // Add spacing before search bar
@@ -398,8 +503,7 @@ class _ExploreTabState extends State<ExploreTab> {
                   ],
                 ),
               ),
-              const SizedBox(
-                  height: 15), // Adjust spacing between search bar and content
+              const SizedBox(height: 15),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
@@ -420,7 +524,7 @@ class _ExploreTabState extends State<ExploreTab> {
                             displayedLocation ?? '',
                             style: const TextStyle(fontSize: 16),
                             overflow: TextOverflow.ellipsis,
-                            maxLines: 2, // Allow text to wrap
+                            maxLines: 2,
                           ),
                         ),
                       ],
@@ -439,35 +543,63 @@ class _ExploreTabState extends State<ExploreTab> {
                   ],
                 ),
               ),
-              Builder(
-                builder: (context) {
-                  //the if causes the space after change
-                  if (filteredPlaces.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: const Text(
-                          "No places found matching your search and filter criteria.",
-                          style: TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
+              const SizedBox(height: 15),
+              TabBar(
+                labelColor: Colors.blue,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.blue,
+                tabs: const [
+                  Tab(text: 'Places Near You'),
+                  Tab(text: 'Favorites'),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    // Places Near You tab content
+                    SingleChildScrollView(
+                      child: Builder(
+                        builder: (context) {
+                          if (filteredPlaces.isEmpty) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0),
+                                child: const Text(
+                                  "No places found matching your search and filter criteria.",
+                                  style: TextStyle(fontSize: 16),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            );
+                          } else {
+                            return ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: filteredPlaces.length,
+                              itemBuilder: (context, index) {
+                                final place = filteredPlaces[index];
+                                return PlaceListItem(
+                                  place: place,
+                                  onTap: () => _onPlaceTap(place),
+                                );
+                              },
+                            );
+                          }
+                        },
                       ),
-                    );
-                  } else {
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: filteredPlaces.length,
-                      itemBuilder: (context, index) {
-                        final place = filteredPlaces[index];
-                        return PlaceListItem(
-                          place: place,
-                          onTap: () => _onPlaceTap(place),
-                        );
-                      },
-                    );
-                  }
-                },
+                    ),
+                    // Favorites tab content
+                    _buildFavoritesTab(),
+                    const Center(
+                      child: Text(
+                        "No favorites added yet.",
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ],
