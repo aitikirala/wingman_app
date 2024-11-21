@@ -176,19 +176,20 @@ class _ProfileTabState extends State<ProfileTab> {
                           },
                           child: const Text('Cancel'),
                         ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () async {
+                            await _auth.signOut();
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                  builder: (context) => FirstScreen()),
+                              (Route<dynamic> route) => false,
+                            );
+                          },
+                          child: const Text('Sign Out'),
+                        ),
                       ],
                     ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () async {
-                      await _auth.signOut();
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => FirstScreen()),
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                    child: const Text('Sign Out'),
-                  ),
                   const SizedBox(height: 40),
                 ],
               ),
