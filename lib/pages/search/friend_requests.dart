@@ -61,13 +61,15 @@ class FriendRequestsPage extends StatelessWidget {
                               icon:
                                   const Icon(Icons.check, color: Colors.green),
                               onPressed: () {
-                                _acceptFriendRequest(requesterId);
+                                _acceptFriendRequest(requesterId,
+                                    FirebaseAuth.instance.currentUser?.uid);
                               },
                             ),
                             IconButton(
                               icon: const Icon(Icons.close, color: Colors.red),
                               onPressed: () {
-                                _denyFriendRequest(requesterId);
+                                _denyFriendRequest(requesterId,
+                                    FirebaseAuth.instance.currentUser?.uid);
                               },
                             ),
                           ],
@@ -87,40 +89,38 @@ class FriendRequestsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _acceptFriendRequest(String senderId) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    final currentUserId = currentUser.uid;
+  Future<void> _acceptFriendRequest(
+      String senderId, String? currentUserId) async {
+    if (currentUserId == null) return;
 
     try {
-      // Add sender to current user's friends list
+      // Add the sender to the current user's followers and remove from requestsReceived
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUserId)
           .update({
-        'friends': FieldValue.arrayUnion([senderId]),
-        'requestsReceived': FieldValue.arrayRemove([senderId])
+        'followers': FieldValue.arrayUnion([senderId]),
+        'requestsReceived': FieldValue.arrayRemove([senderId]),
       });
 
-      // Add current user to sender's friends list
+      // Add the current user to the sender's following and remove from requestsSent
       await FirebaseFirestore.instance
           .collection('users')
           .doc(senderId)
           .update({
-        'friends': FieldValue.arrayUnion([currentUserId]),
-        'requestsSent': FieldValue.arrayRemove([currentUserId])
+        'following': FieldValue.arrayUnion([currentUserId]),
+        'requestsSent': FieldValue.arrayRemove([currentUserId]),
       });
+
+      print('Friend request accepted!');
     } catch (e) {
       print('Error accepting friend request: $e');
     }
   }
 
-  Future<void> _denyFriendRequest(String senderId) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    final currentUserId = currentUser.uid;
+  Future<void> _denyFriendRequest(
+      String senderId, String? currentUserId) async {
+    if (currentUserId == null) return;
 
     try {
       // Remove sender from current user's requestsReceived list
@@ -130,6 +130,8 @@ class FriendRequestsPage extends StatelessWidget {
           .update({
         'requestsReceived': FieldValue.arrayRemove([senderId]),
       });
+
+      print('Friend request denied.');
     } catch (e) {
       print('Error denying friend request: $e');
     }

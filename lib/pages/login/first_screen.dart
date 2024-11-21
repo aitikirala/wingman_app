@@ -308,7 +308,7 @@ class _FirstScreenState extends State<FirstScreen> {
           'lastSignInTime': FieldValue.serverTimestamp(),
           'provider': 'google',
           'favorites': FieldValue.arrayUnion([]),
-          'friends': FieldValue.arrayUnion([]),
+          'followers': FieldValue.arrayUnion([]),
           'requestsSent': FieldValue.arrayUnion([]),
           'requestsReceived': FieldValue.arrayUnion([]),
         }, SetOptions(merge: true));

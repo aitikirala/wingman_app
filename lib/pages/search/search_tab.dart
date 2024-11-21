@@ -257,7 +257,7 @@ class _SearchTabState extends State<SearchTab> {
     }
   }
 
-  Future<void> _addFriend(String friendId) async {
+  Future<void> _sendRequest(String friendId) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -269,30 +269,30 @@ class _SearchTabState extends State<SearchTab> {
     final currentUserId = currentUser.uid;
 
     try {
-      // Add the friend to the current user's friends list
+      // Add the friend to the current user's requestsSent list
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUserId)
           .update({
-        'friends': FieldValue.arrayUnion([friendId])
+        'requestsSent': FieldValue.arrayUnion([friendId])
       });
 
-      // Optionally: Add the current user to the friend's friends list
+      // Add the current user to the friend's requestsReceived list
       await FirebaseFirestore.instance
           .collection('users')
           .doc(friendId)
           .update({
-        'friends': FieldValue.arrayUnion([currentUserId])
+        'requestsReceived': FieldValue.arrayUnion([currentUserId])
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Friend added successfully!')),
+        const SnackBar(content: Text('Friend request sent!')),
       );
     } catch (e) {
-      print("Error adding friend: $e");
+      print("Error sending friend request: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Failed to add friend. Please try again.')),
+            content: Text('Failed to send friend request. Please try again.')),
       );
     }
   }
@@ -320,12 +320,13 @@ class _SearchTabState extends State<SearchTab> {
           }
 
           final currentUserData = snapshot.data!.data() as Map<String, dynamic>;
-          final friends = List<String>.from(currentUserData['friends'] ?? []);
+          final followers =
+              List<String>.from(currentUserData['followers'] ?? []);
           final requestsSent =
               List<String>.from(currentUserData['requestsSent'] ?? []);
           final recipientId = _searchResult!['uid'];
 
-          final isFriend = friends.contains(recipientId);
+          final isFriend = followers.contains(recipientId);
           final isRequestSent = requestsSent.contains(recipientId);
 
           return Padding(
@@ -467,72 +468,6 @@ class _SearchTabState extends State<SearchTab> {
             requestsReceived: requestsReceived,
           ),
         ),
-      );
-    }
-  }
-
-  Future<void> _acceptFriendRequest(String senderId) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    final currentUserId = currentUser.uid;
-
-    try {
-      // Add sender to current user's friends list
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .update({
-        'friends': FieldValue.arrayUnion([senderId]),
-        'requestsReceived':
-            FieldValue.arrayRemove([senderId]) // Remove from requestsReceived
-      });
-
-      // Add current user to sender's friends list
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(senderId)
-          .update({
-        'friends': FieldValue.arrayUnion([currentUserId]),
-        'requestsSent': FieldValue.arrayRemove(
-            [currentUserId]) // Remove from sender's requestsSent
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Friend request accepted!')),
-      );
-      Navigator.pop(context); // Close the modal after accepting
-    } catch (e) {
-      print("Error accepting friend request: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to accept friend request.')),
-      );
-    }
-  }
-
-  Future<void> _denyFriendRequest(String senderId) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    final currentUserId = currentUser.uid;
-
-    try {
-      // Remove sender from current user's requestsReceived list
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .update({
-        'requestsReceived': FieldValue.arrayRemove([senderId]),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Friend request denied.')),
-      );
-      Navigator.pop(context); // Close the modal after denying
-    } catch (e) {
-      print("Error denying friend request: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to deny friend request.')),
       );
     }
   }
