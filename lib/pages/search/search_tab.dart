@@ -320,72 +320,93 @@ class _SearchTabState extends State<SearchTab> {
           }
 
           final currentUserData = snapshot.data!.data() as Map<String, dynamic>;
-          final followers =
+          final currentUserFollowers =
               List<String>.from(currentUserData['followers'] ?? []);
-          final requestsSent =
-              List<String>.from(currentUserData['requestsSent'] ?? []);
+          final currentUserFollowing =
+              List<String>.from(currentUserData['following'] ?? []);
           final recipientId = _searchResult!['uid'];
 
-          final isFriend = followers.contains(recipientId);
-          final isRequestSent = requestsSent.contains(recipientId);
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('users')
+                .doc(recipientId)
+                .get(),
+            builder: (context, recipientSnapshot) {
+              if (!recipientSnapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
+              final recipientData =
+                  recipientSnapshot.data!.data() as Map<String, dynamic>;
+              final recipientFollowers =
+                  List<String>.from(recipientData['followers'] ?? []);
+              final recipientFollowing =
+                  List<String>.from(recipientData['following'] ?? []);
+
+              // Check for mutual following
+              final isMutualFriend =
+                  currentUserFollowers.contains(recipientId) &&
+                      recipientFollowers.contains(currentUser.uid);
+
+              return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (_searchResult!['photoURL'] != null)
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundImage:
-                            NetworkImage(_searchResult!['photoURL']),
-                      ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _searchResult!['firstName'] ?? 'Unknown Name',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _searchResult!['email'] ??
-                          _searchResult!['phoneNumber'] ??
-                          '',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 16),
-                    if (isFriend)
-                      const Text(
-                        'Your Friend',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                child: Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (_searchResult!['photoURL'] != null)
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundImage:
+                                NetworkImage(_searchResult!['photoURL']),
+                          ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchResult!['firstName'] ?? 'Unknown Name',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      )
-                    else if (isRequestSent)
-                      ElevatedButton(
-                        onPressed: () => _showWaitingDialog(),
-                        child: const Text('Waiting'),
-                      )
-                    else
-                      ElevatedButton(
-                        onPressed: () => _sendFriendRequest(recipientId),
-                        child: const Text('Add Friend'),
-                      ),
-                  ],
+                        const SizedBox(height: 8),
+                        Text(
+                          _searchResult!['email'] ??
+                              _searchResult!['phoneNumber'] ??
+                              '',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+                        if (isMutualFriend)
+                          const Text(
+                            'Your Friend',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          )
+                        else if (currentUserFollowing.contains(recipientId))
+                          ElevatedButton(
+                            onPressed: () => _showWaitingDialog(),
+                            child: const Text('Waiting'),
+                          )
+                        else
+                          ElevatedButton(
+                            onPressed: () => _sendFriendRequest(recipientId),
+                            child: const Text('Add Friend'),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       );

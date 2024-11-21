@@ -79,6 +79,15 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
     }
   }
 
+  void _handleAction(String senderId, bool isAccept) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (isAccept) {
+      _acceptFriendRequest(senderId, currentUserId);
+    } else {
+      _denyFriendRequest(senderId, currentUserId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -115,16 +124,14 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                       onDismissed: (direction) {
                         if (direction == DismissDirection.startToEnd) {
                           // Swipe right to accept
-                          _acceptFriendRequest(requesterId,
-                              FirebaseAuth.instance.currentUser?.uid);
+                          _handleAction(requesterId, true);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content: Text('Friend request accepted!')),
                           );
                         } else if (direction == DismissDirection.endToStart) {
                           // Swipe left to deny
-                          _denyFriendRequest(requesterId,
-                              FirebaseAuth.instance.currentUser?.uid);
+                          _handleAction(requesterId, false);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content: Text('Friend request denied.')),
@@ -132,16 +139,16 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                         }
                       },
                       background: Container(
-                        color: Colors.red,
+                        color: Colors.green,
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: const Icon(Icons.close, color: Colors.white),
+                        child: const Icon(Icons.check, color: Colors.white),
                       ),
                       secondaryBackground: Container(
-                        color: Colors.green,
+                        color: Colors.red,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: const Icon(Icons.check, color: Colors.white),
+                        child: const Icon(Icons.close, color: Colors.white),
                       ),
                       child: Card(
                         margin: const EdgeInsets.symmetric(vertical: 8),
@@ -159,6 +166,37 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
                               requesterData['firstName'] ?? 'Unknown Name'),
                           subtitle: Text(
                               requesterData['email'] ?? 'No Email Provided'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.check,
+                                    color: Colors.green),
+                                onPressed: () {
+                                  // Perform the swipe right action (accept)
+                                  _handleAction(requesterId, true);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Friend request accepted!')),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.close, color: Colors.red),
+                                onPressed: () {
+                                  // Perform the swipe left action (deny)
+                                  _handleAction(requesterId, false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Friend request denied.')),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
