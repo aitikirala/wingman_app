@@ -103,9 +103,6 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Phone Sign-In'),
-      ),
       body: Center(
         child: SingleChildScrollView(
           child: Column(

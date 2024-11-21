@@ -105,20 +105,16 @@ class _FirstScreenState extends State<FirstScreen> {
           ),
         ),
         SizedBox(height: 10), // Space between buttons
-        // Sign in with Phone Number button with transparent background and white border
+        // Sign in with Phone Number button
         Container(
-          width: 300, // Same fixed width as Google button
-          height: 50, // Same fixed height as Google button
+          width: 300,
+          height: 50,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
             border: Border.all(color: Colors.white, width: 2), // White border
           ),
           child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => PhoneSignInScreen()),
-              );
-            },
+            onPressed: _showPhoneSignInDialog,
             icon: Icon(Icons.phone, color: Colors.white), // Phone Icon
             label: Text('Sign in with Phone Number',
                 style: TextStyle(color: Colors.white)),
@@ -132,6 +128,119 @@ class _FirstScreenState extends State<FirstScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showPhoneSignInDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final TextEditingController phoneNumberController =
+            TextEditingController();
+        final TextEditingController smsCodeController = TextEditingController();
+        String? verificationId;
+
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            void sendCodeToPhoneNumber() async {
+              String phoneNumber = phoneNumberController.text.trim();
+              if (phoneNumber.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please enter phone number')));
+                return;
+              }
+              await FirebaseAuth.instance.verifyPhoneNumber(
+                phoneNumber: phoneNumber,
+                verificationCompleted: (PhoneAuthCredential credential) async {
+                  await FirebaseAuth.instance.signInWithCredential(credential);
+                  Navigator.pop(context); // Close dialog on success
+                },
+                verificationFailed: (FirebaseAuthException e) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Verification failed: ${e.message}')));
+                },
+                codeSent: (String vId, int? resendToken) {
+                  setState(() {
+                    verificationId = vId;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Verification code sent')));
+                },
+                codeAutoRetrievalTimeout: (String vId) {
+                  verificationId = vId;
+                },
+              );
+            }
+
+            void signInWithPhoneNumber() async {
+              String smsCode = smsCodeController.text.trim();
+              if (verificationId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Please request verification code first')));
+                return;
+              }
+              if (smsCode.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please enter verification code')));
+                return;
+              }
+              try {
+                PhoneAuthCredential credential = PhoneAuthProvider.credential(
+                    verificationId: verificationId!, smsCode: smsCode);
+                await FirebaseAuth.instance.signInWithCredential(credential);
+                Navigator.pop(context); // Close dialog on success
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed to sign in: ${e.toString()}')));
+              }
+            }
+
+            return AlertDialog(
+              title: Text('Phone Sign-In'),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: phoneNumberController,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        hintText: '+1 123-456-7890',
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: sendCodeToPhoneNumber,
+                      child: Text('Send Code'),
+                    ),
+                    SizedBox(height: 10),
+                    TextField(
+                      controller: smsCodeController,
+                      decoration: InputDecoration(
+                        labelText: 'Verification Code',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: signInWithPhoneNumber,
+                      child: Text('Verify Code'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close dialog without action
+                  },
+                  child: Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
