@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:wingman_app/pages/search/friend_requests.dart';
+import 'package:wingman_app/pages/search/view_profile.dart';
 
 class SearchTab extends StatefulWidget {
   const SearchTab({Key? key}) : super(key: key);
@@ -320,8 +321,6 @@ class _SearchTabState extends State<SearchTab> {
           }
 
           final currentUserData = snapshot.data!.data() as Map<String, dynamic>;
-          final currentUserFollowers =
-              List<String>.from(currentUserData['followers'] ?? []);
           final currentUserFollowing =
               List<String>.from(currentUserData['following'] ?? []);
           final requestsSent =
@@ -340,71 +339,78 @@ class _SearchTabState extends State<SearchTab> {
 
               final recipientData =
                   recipientSnapshot.data!.data() as Map<String, dynamic>;
-              final recipientFollowers =
-                  List<String>.from(recipientData['followers'] ?? []);
-
-              // Check for mutual following
-              final isMutualFriend =
-                  currentUserFollowers.contains(recipientId) &&
-                      recipientFollowers.contains(currentUser.uid);
-
-              // Check if a request has been sent
+              final isFollowing = currentUserFollowing.contains(recipientId);
               final isRequestSent = requestsSent.contains(recipientId);
 
               return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if (_searchResult!['photoURL'] != null)
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundImage:
-                                NetworkImage(_searchResult!['photoURL']),
-                          ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _searchResult!['firstName'] ?? 'Unknown Name',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _searchResult!['email'] ??
-                              _searchResult!['phoneNumber'] ??
-                              '',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(height: 16),
-                        if (isMutualFriend)
-                          const Text(
-                            'Your Friend',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
+                child: GestureDetector(
+                  onTap: isFollowing
+                      ? () {
+                          // Navigate to the recipient's profile page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ViewProfile(
+                                userId: recipientId,
+                              ),
                             ),
-                          )
-                        else if (isRequestSent)
-                          ElevatedButton(
-                            onPressed: () => _showWaitingDialog(),
-                            child: const Text('Waiting'),
-                          )
-                        else
-                          ElevatedButton(
-                            onPressed: () => _sendFriendRequest(recipientId),
-                            child: const Text('Add Friend'),
+                          );
+                        }
+                      : null, // Disable tap if not following
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (_searchResult!['photoURL'] != null)
+                            CircleAvatar(
+                              radius: 50,
+                              backgroundImage:
+                                  NetworkImage(_searchResult!['photoURL']),
+                            ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _searchResult!['firstName'] ?? 'Unknown Name',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            _searchResult!['email'] ??
+                                _searchResult!['phoneNumber'] ??
+                                '',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 16),
+                          if (isFollowing)
+                            const Text(
+                              'Following',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            )
+                          else if (isRequestSent)
+                            ElevatedButton(
+                              onPressed: () => _showWaitingDialog(),
+                              child: const Text('Waiting'),
+                            )
+                          else
+                            ElevatedButton(
+                              onPressed: () => _sendFriendRequest(recipientId),
+                              child: const Text('Add Friend'),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
