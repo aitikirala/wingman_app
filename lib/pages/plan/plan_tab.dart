@@ -1,5 +1,6 @@
 // plan_tab.dart
 import 'package:flutter/material.dart';
+import 'calendar.dart'; // Import the calendar screen
 
 class PlanTab extends StatelessWidget {
   const PlanTab({Key? key}) : super(key: key);
@@ -32,7 +33,12 @@ class PlanTab extends StatelessWidget {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              // Implement the "Create Your Own" functionality here
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const Calendar(),
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,

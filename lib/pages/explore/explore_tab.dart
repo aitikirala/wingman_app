@@ -367,6 +367,14 @@ class _ExploreTabState extends State<ExploreTab> {
             ),
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.add, color: Colors.blue),
+              onPressed: () {
+                // Add your functionality to add this place to the plan
+                _addToPlan(placeDetails);
+                Navigator.of(context).pop(); // Close dialog after adding
+              },
+            ),
             Center(
               child: TextButton(
                 onPressed: () {
@@ -379,6 +387,10 @@ class _ExploreTabState extends State<ExploreTab> {
         );
       },
     );
+  }
+
+  void _addToPlan(dynamic placeDetails) {
+    print('addToPlan function called with: ${placeDetails['name']}');
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
