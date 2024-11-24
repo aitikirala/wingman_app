@@ -1,7 +1,8 @@
+// place_item.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:wingman_app/pages/explore/service/place_service.dart';
 
 class PlaceListItem extends StatefulWidget {
   final dynamic place;
@@ -48,12 +49,15 @@ class _PlaceListItemState extends State<PlaceListItem> {
       final favorites =
           List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
 
-      // Check if the current place exists in favorites
+      // Adjust the favoriteData to match the OpenStreetMap data structure
       final favoriteData = {
-        'name': widget.place['name'] ?? 'Unknown Name',
-        'address': widget.place['vicinity'] ?? 'Unknown Address',
+        'name': widget.place['tags']['name'] ?? 'Unknown Name',
+        'address': widget.place['tags']['addr:full'] ??
+            widget.place['tags']['addr:street'] ??
+            'Unknown Address',
       };
 
+      // Check if the current place exists in favorites
       final exists = favorites.any((favorite) =>
           favorite['name'] == favoriteData['name'] &&
           favorite['address'] == favoriteData['address']);
@@ -88,8 +92,10 @@ class _PlaceListItemState extends State<PlaceListItem> {
 
     // Create the data to be added/removed to/from the favorites array
     final favoriteData = {
-      'name': widget.place['name'] ?? 'Unknown Name',
-      'address': widget.place['vicinity'] ?? 'Unknown Address',
+      'name': widget.place['tags']['name'] ?? 'Unknown Name',
+      'address': widget.place['tags']['addr:full'] ??
+          widget.place['tags']['addr:street'] ??
+          'Unknown Address',
     };
 
     try {
@@ -138,15 +144,16 @@ class _PlaceListItemState extends State<PlaceListItem> {
 
   @override
   Widget build(BuildContext context) {
-    final photoReference = widget.place['photos'] != null
-        ? widget.place['photos'][0]['photo_reference']
-        : null;
+    // Since OpenStreetMap does not provide photos, we'll skip photo handling
+    // You can use a placeholder image or an icon instead
 
-    final photoUrl = photoReference != null
-        ? PlaceService.getPhotoUrl(photoReference, 'web')
-        : null;
+    final name = widget.place['tags']['name'] ?? 'No Name';
+    final address = widget.place['tags']['addr:full'] ??
+        widget.place['tags']['addr:street'] ??
+        'No Address';
 
-    final rating = widget.place['rating'];
+    // Since OpenStreetMap does not provide ratings, we can omit that part or set a default
+    final rating = widget.place['tags']['rating'] ?? 'No Rating';
 
     return InkWell(
       onTap: widget.onTap,
@@ -173,7 +180,7 @@ class _PlaceListItemState extends State<PlaceListItem> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.place['name'] ?? 'No Name',
+                      name,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -181,42 +188,36 @@ class _PlaceListItemState extends State<PlaceListItem> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.place['vicinity'] ?? 'No Address',
+                      address,
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.grey,
                       ),
                     ),
+                    // If you want to include rating, you can add it here
+                    /*
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         Icon(Icons.star, color: Colors.yellow[700], size: 16),
                         const SizedBox(width: 4),
                         Text(
-                          rating != null ? rating.toString() : 'No Rating',
+                          rating.toString(),
                           style: const TextStyle(fontSize: 14),
                         ),
                       ],
                     ),
+                    */
                   ],
                 ),
               ),
-              if (photoUrl != null)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      photoUrl,
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.broken_image, size: 100);
-                      },
-                    ),
-                  ),
-                ),
+              // Since we don't have photos, you might display an icon or skip this
+              /*
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Icon(Icons.place, size: 50, color: Colors.blue),
+              ),
+              */
             ],
           ),
         ),

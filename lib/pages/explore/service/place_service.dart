@@ -9,19 +9,29 @@ class PlaceService {
   static final String serverUrl =
       'http://localhost:8080'; // Replace with your server's IP and port
 
-  static Future<Map<String, dynamic>> fetchNearbyPlaces(
-      double latitude, double longitude, String platform,
-      {String? pageToken, int groupIndex = 0}) async {
-    final int radius = 1600; // 20 miles in meters
+  String? sessionId;
 
+  Future<void> startSession() async {
+    final response =
+        await http.get(Uri.parse('$serverUrl/api/proxy/startSession'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      sessionId = data['sessionId'];
+    } else {
+      throw Exception('Failed to start session');
+    }
+  }
+
+  static Future<Map<String, dynamic>> fetchNearbyPlaces(
+      double latitude, double longitude,
+      {int radius = 1600, int groupIndex = 0, String? sessionId}) async {
     final url = Uri.parse('$serverUrl/api/proxy/nearbysearch').replace(
       queryParameters: {
         'latitude': latitude.toString(),
         'longitude': longitude.toString(),
         'radius': radius.toString(),
-        'platform': platform,
         'groupIndex': groupIndex.toString(),
-        if (pageToken != null) 'nextPageToken': pageToken,
+        if (sessionId != null) 'sessionId': sessionId,
       },
     );
 
@@ -73,19 +83,18 @@ class PlaceService {
   }
 
   static Future<List<dynamic>> fetchAutocompleteSuggestions(
-      String input, String platform) async {
+      String input) async {
     final url = Uri.parse('$serverUrl/api/proxy/autocomplete').replace(
       queryParameters: {
         'input': input,
-        'platform': platform,
       },
     );
 
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['predictions'] ?? [];
+        final List<dynamic> data = json.decode(response.body);
+        return data;
       } else {
         throw Exception(
             'Failed to fetch suggestions. Status code: ${response.statusCode}');

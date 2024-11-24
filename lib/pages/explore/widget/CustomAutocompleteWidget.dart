@@ -1,14 +1,14 @@
+// CustomAutocompleteWidget.dart
+
 import 'package:flutter/material.dart';
 import 'package:wingman_app/pages/explore/service/place_service.dart';
 
 class CustomAutocompleteWidget extends StatefulWidget {
-  final Function(String placeId) onPlaceSelected;
-  final String platform; // Add platform as a parameter
+  final Function(Map<String, dynamic> suggestion) onPlaceSelected;
 
   const CustomAutocompleteWidget({
     Key? key,
     required this.onPlaceSelected,
-    required this.platform, // Make platform required
   }) : super(key: key);
 
   @override
@@ -29,21 +29,14 @@ class _CustomAutocompleteWidgetState extends State<CustomAutocompleteWidget> {
     }
 
     try {
-      // Pass widget.platform as the second argument
-      final results = await PlaceService.fetchAutocompleteSuggestions(
-          input, widget.platform);
+      final results = await PlaceService.fetchAutocompleteSuggestions(input);
       setState(() {
         _suggestions = results;
       });
     } catch (e) {
       print('Error fetching suggestions: $e');
       setState(() {
-        _suggestions = [
-          {
-            'description': 'Error fetching suggestions. Please try again.',
-            'place_id': ''
-          }
-        ];
+        _suggestions = [];
       });
     }
   }
@@ -66,9 +59,9 @@ class _CustomAutocompleteWidgetState extends State<CustomAutocompleteWidget> {
             itemBuilder: (context, index) {
               final suggestion = _suggestions[index];
               return ListTile(
-                title: Text(suggestion['description']),
+                title: Text(suggestion['display_name'] ?? 'No Name'),
                 onTap: () {
-                  widget.onPlaceSelected(suggestion['place_id']);
+                  widget.onPlaceSelected(suggestion);
                   _controller.clear();
                   setState(() {
                     _suggestions = [];

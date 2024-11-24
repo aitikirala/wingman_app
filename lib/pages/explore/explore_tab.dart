@@ -1,17 +1,18 @@
 // explore_tab.dart
-// When running android: 10.0.2.2:8080 replaces localhost:8080
 
 import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart'; // May not be needed anymore
 import 'package:wingman_app/pages/explore/service/location_service.dart';
 import 'package:wingman_app/pages/explore/service/place_service.dart';
 import 'package:wingman_app/pages/explore/widget/CustomAutocompleteWidget.dart';
 import 'package:wingman_app/pages/explore/widget/filter_dialog.dart';
 import 'package:wingman_app/pages/explore/widget/place_list_item.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class ExploreTab extends StatefulWidget {
   const ExploreTab({Key? key}) : super(key: key);
@@ -25,6 +26,7 @@ class _ExploreTabState extends State<ExploreTab> {
   String? errorMessage;
   String? displayedLocation;
   List<dynamic> nearbyPlaces = [];
+  String? sessionId; // Session ID for caching
   final TextEditingController searchController =
       TextEditingController(); // Search bar controller
 
@@ -34,27 +36,24 @@ class _ExploreTabState extends State<ExploreTab> {
   List<dynamic> favorites = []; // Holds favorite places
   bool isLoadingFavorites = true; // Tracks loading state for favorites
 
-  // Determine the platform
-  String get platform {
-    if (kIsWeb) {
-      return 'web';
-    } else if (Platform.isIOS) {
-      return 'ios';
-    } else if (Platform.isAndroid) {
-      return 'android';
-    } else {
-      return 'unknown';
-    }
-  }
+  // Scroll controller for detecting when the user scrolls to the bottom
+  ScrollController _scrollController = ScrollController();
+
+  // Variables to manage pagination and loading state
+  int currentGroupIndex = 0;
+  int currentRadius = 1600; // Initial radius in meters
+  bool hasMoreData = true;
+  bool isLoadingMore = false;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
-    // Update the UI when the search text changes
+    _initializeSessionAndLocation();
     searchController.addListener(() {
       setState(() {}); // Triggers rebuild to apply filtering
     });
+
+    _scrollController.addListener(_onScroll);
 
     _listenToFavorites(); // Set up the listener
   }
@@ -62,7 +61,45 @@ class _ExploreTabState extends State<ExploreTab> {
   @override
   void dispose() {
     searchController.dispose(); // Dispose controller when widget is destroyed
+    _scrollController.dispose(); // Dispose the scroll controller
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !isLoadingMore &&
+        hasMoreData) {
+      // User has scrolled near the bottom
+      _fetchMorePlaces();
+    }
+  }
+
+  Future<void> _initializeSessionAndLocation() async {
+    try {
+      await _startSession();
+      await _getCurrentLocation();
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error initializing session or location: $e';
+      });
+    }
+  }
+
+  Future<void> _startSession() async {
+    try {
+      final response = await http
+          .get(Uri.parse('${PlaceService.serverUrl}/api/proxy/startSession'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        sessionId = data['sessionId'];
+      } else {
+        throw Exception(
+            'Failed to start session. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error starting session: $e');
+    }
   }
 
   void _listenToFavorites() {
@@ -94,77 +131,6 @@ class _ExploreTabState extends State<ExploreTab> {
     });
   }
 
-  Widget _buildFavoritesTab() {
-    if (isLoadingFavorites) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (favorites.isEmpty) {
-      return const Center(
-        child: Text(
-          'No favorites added yet.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: favorites.length,
-      itemBuilder: (context, index) {
-        final favorite = favorites[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          elevation: 6,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                if (favorite['photoUrl'] != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      favorite['photoUrl'],
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.broken_image, size: 80),
-                    ),
-                  ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        favorite['name'] ?? 'Unnamed Place',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        favorite['address'] ?? 'No Address Available',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Future<void> _getCurrentLocation() async {
     try {
       currentLocation = await LocationService.getCurrentLocation();
@@ -192,22 +158,24 @@ class _ExploreTabState extends State<ExploreTab> {
     displayedLocation = await LocationService.getLocationNameFromCoordinates(
       currentLocation!.latitude,
       currentLocation!.longitude,
-      platform, // Pass the platform here
     );
     setState(() {});
   }
 
-  Future<void> _fetchNearbyPlaces(
-      {String? pageToken, int groupIndex = 0}) async {
-    if (currentLocation == null) return;
+  Future<void> _fetchNearbyPlaces({int? groupIndex, int? radius}) async {
+    if (currentLocation == null || sessionId == null) return;
+
+    setState(() {
+      isLoadingMore = true;
+    });
 
     try {
       final Map<String, dynamic> result = await PlaceService.fetchNearbyPlaces(
         currentLocation!.latitude,
         currentLocation!.longitude,
-        platform, // Pass the platform here
-        pageToken: pageToken,
-        groupIndex: groupIndex,
+        radius: radius ?? currentRadius,
+        groupIndex: groupIndex ?? currentGroupIndex,
+        sessionId: sessionId,
       );
 
       if (result.containsKey('error')) {
@@ -218,41 +186,64 @@ class _ExploreTabState extends State<ExploreTab> {
       }
 
       final List<dynamic> results = result['results'] ?? [];
-      final String? newNextPageToken =
-          result['next_page_token'] ?? result['nextPageToken'];
       final int? newGroupIndex = result['groupIndex'] != null
           ? int.tryParse(result['groupIndex'].toString())
           : null;
+      final int? newRadius = result['radius'] != null
+          ? int.tryParse(result['radius'].toString())
+          : null;
 
       setState(() {
+        // Add new places to the list
         nearbyPlaces.addAll(results);
 
         // Update allTypes
         for (var place in results) {
-          if (place['types'] != null) {
-            allTypes.addAll(List<String>.from(place['types']));
+          if (place['tags'] != null) {
+            // Collect the values of 'amenity', 'shop', 'leisure', etc., as types
+            List<String> placeTypes = [];
+            if (place['tags']['amenity'] != null) {
+              placeTypes.add(place['tags']['amenity']);
+            }
+            if (place['tags']['shop'] != null) {
+              placeTypes.add(place['tags']['shop']);
+            }
+            if (place['tags']['leisure'] != null) {
+              placeTypes.add(place['tags']['leisure']);
+            }
+            allTypes.addAll(placeTypes);
           }
         }
-      });
 
-      if (newNextPageToken != null) {
-        await Future.delayed(const Duration(seconds: 2));
-        await _fetchNearbyPlaces(
-          pageToken: newNextPageToken,
-          groupIndex: groupIndex,
-        );
-      } else if (newGroupIndex != null) {
-        await _fetchNearbyPlaces(
-          groupIndex: newGroupIndex,
-        );
-      } else {
-        setState(() {}); // Ensure UI updates after fetching all data
-      }
+        // Update currentGroupIndex and currentRadius for next fetch
+        if (newGroupIndex != null) {
+          currentGroupIndex = newGroupIndex;
+        }
+
+        if (newRadius != null) {
+          currentRadius = newRadius;
+        }
+
+        // If both newGroupIndex and newRadius are null, no more data
+        if (newGroupIndex == null && newRadius == null) {
+          hasMoreData = false;
+        }
+      });
     } catch (e) {
       setState(() {
         errorMessage = 'Error: $e';
       });
+    } finally {
+      setState(() {
+        isLoadingMore = false;
+      });
     }
+  }
+
+  Future<void> _fetchMorePlaces() async {
+    if (!hasMoreData || isLoadingMore) return;
+
+    await _fetchNearbyPlaces();
   }
 
   void _openFilterDialog() async {
@@ -278,12 +269,22 @@ class _ExploreTabState extends State<ExploreTab> {
     String query = searchController.text.toLowerCase();
     return nearbyPlaces.where((place) {
       // Apply search filter
-      final name = place['name']?.toLowerCase() ?? '';
+      final name = place['tags']['name']?.toLowerCase() ?? '';
       final matchesSearch = name.contains(query) || query.isEmpty;
 
       // Apply type filter
-      final types =
-          place['types'] != null ? List<String>.from(place['types']) : [];
+      List<String> types = [];
+      if (place['tags'] != null) {
+        if (place['tags']['amenity'] != null) {
+          types.add(place['tags']['amenity']);
+        }
+        if (place['tags']['shop'] != null) {
+          types.add(place['tags']['shop']);
+        }
+        if (place['tags']['leisure'] != null) {
+          types.add(place['tags']['leisure']);
+        }
+      }
       final matchesFilter = selectedTypes.isEmpty ||
           types.any((type) => selectedTypes.contains(type));
 
@@ -292,32 +293,19 @@ class _ExploreTabState extends State<ExploreTab> {
     }).toList();
   }
 
-  void _onPlaceTap(dynamic place) async {
-    final placeDetails = await PlaceService.fetchPlaceDetails(
-      place['place_id'],
-      platform, // Pass the platform here
-    );
-    final phoneNumber =
-        placeDetails['formatted_phone_number'] ?? 'No Phone Number';
-    final openingHours = (placeDetails['opening_hours']?['weekday_text'] ??
-            ['No hours available'])
-        .map((hour) {
-      // Insert a dash between times if it's missing
-      final formattedHour = hour.replaceAll(RegExp(r'[^\x00-\x7F]'), '');
-      return formattedHour.replaceAllMapped(
-        RegExp(r'(\d{1,2}:\d{2}[AP]M)(\d{1,2}:\d{2}[AP]M)'),
-        (match) => '${match.group(1)} - ${match.group(2)}',
-      );
-    }).toList();
+  void _onPlaceTap(dynamic place) {
+    // Since Overpass API returns detailed data, we can use 'place' directly
+    final placeDetails = place;
+    final name = placeDetails['tags']['name'] ?? 'Unnamed Place';
+    final address = placeDetails['tags']['addr:full'] ??
+        placeDetails['tags']['addr:street'] ??
+        'No Address';
+    final latitude = placeDetails['lat'];
+    final longitude = placeDetails['lon'];
 
-    final photoReference = placeDetails['photos'] != null
-        ? placeDetails['photos'][0]['photo_reference']
-        : null;
+    // Since OpenStreetMap does not provide photos, skip photo handling
 
-    final photoUrl = photoReference != null
-        ? PlaceService.getPhotoUrl(photoReference, platform)
-        : null;
-
+    // Display the details in a dialog
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -326,7 +314,7 @@ class _ExploreTabState extends State<ExploreTab> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Center(
             child: Text(
-              placeDetails['name'] ?? 'No Name',
+              name,
               style: const TextStyle(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -335,34 +323,8 @@ class _ExploreTabState extends State<ExploreTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (photoUrl != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      photoUrl,
-                      height: 150,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.broken_image, size: 100);
-                      },
-                    ),
-                  ),
-                const SizedBox(height: 12),
-                _buildDetailRow(Icons.location_on, 'Address',
-                    placeDetails['formatted_address'] ?? 'No Address'),
-                const SizedBox(height: 8),
-                _buildDetailRow(Icons.phone, 'Phone', phoneNumber),
-                const SizedBox(height: 8),
-                _buildDetailRow(Icons.star, 'Rating',
-                    placeDetails['rating']?.toString() ?? 'No Rating'),
-                const SizedBox(height: 12),
-                const Text(
-                  'Opening Hours:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                ...openingHours.map((hour) =>
-                    Text(hour, style: const TextStyle(color: Colors.grey))),
+                _buildDetailRow(Icons.location_on, 'Address', address),
+                // Add more details if available
               ],
             ),
           ),
@@ -370,7 +332,6 @@ class _ExploreTabState extends State<ExploreTab> {
             IconButton(
               icon: const Icon(Icons.add, color: Colors.blue),
               onPressed: () {
-                // Add your functionality to add this place to the plan
                 _addToPlan(placeDetails);
                 Navigator.of(context).pop(); // Close dialog after adding
               },
@@ -390,7 +351,8 @@ class _ExploreTabState extends State<ExploreTab> {
   }
 
   void _addToPlan(dynamic placeDetails) {
-    print('addToPlan function called with: ${placeDetails['name']}');
+    print('addToPlan function called with: ${placeDetails['tags']['name']}');
+    // Implement your logic to add the place to the user's plan
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
@@ -421,10 +383,9 @@ class _ExploreTabState extends State<ExploreTab> {
           content: SizedBox(
             width: double.maxFinite,
             child: CustomAutocompleteWidget(
-              platform: platform, // Pass the platform variable here
-              onPlaceSelected: (placeId) async {
+              onPlaceSelected: (suggestion) async {
                 Navigator.of(context).pop(); // Close the dialog
-                await _displayPrediction(placeId);
+                await _displayPrediction(suggestion);
               },
             ),
           ),
@@ -433,30 +394,91 @@ class _ExploreTabState extends State<ExploreTab> {
     );
   }
 
-  Future<void> _displayPrediction(String placeId) async {
+  Future<void> _displayPrediction(Map<String, dynamic> suggestion) async {
     try {
-      final placeDetails = await PlaceService.fetchPlaceDetails(
-        placeId,
-        platform,
-      );
-
-      final double lat = placeDetails['geometry']['location']['lat'];
-      final double lng = placeDetails['geometry']['location']['lng'];
+      final double lat = double.parse(suggestion['lat']);
+      final double lng = double.parse(suggestion['lon']);
+      final name = suggestion['display_name'];
 
       setState(() {
         currentLocation = LatLng(lat, lng);
-        displayedLocation = placeDetails['name'];
+        displayedLocation = name;
         nearbyPlaces.clear();
         allTypes.clear();
         selectedTypes.clear();
+
+        // Reset pagination variables
+        currentGroupIndex = 0;
+        currentRadius = 1600;
+        hasMoreData = true;
       });
 
       await _fetchNearbyPlaces();
     } catch (e) {
       setState(() {
-        errorMessage = 'Error fetching place details: $e';
+        errorMessage = 'Error setting location: $e';
       });
     }
+  }
+
+  Widget _buildFavoritesTab() {
+    if (isLoadingFavorites) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (favorites.isEmpty) {
+      return const Center(
+        child: Text(
+          'No favorites added yet.',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: favorites.length,
+      itemBuilder: (context, index) {
+        final favorite = favorites[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                const Icon(Icons.favorite, color: Colors.red, size: 24),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        favorite['name'] ?? 'Unnamed Place',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        favorite['address'] ?? 'No Address Available',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -569,46 +591,50 @@ class _ExploreTabState extends State<ExploreTab> {
                 child: TabBarView(
                   children: [
                     // Places Near You tab content
-                    SingleChildScrollView(
-                      child: Builder(
-                        builder: (context) {
-                          if (filteredPlaces.isEmpty) {
-                            return Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0),
-                                child: const Text(
-                                  "No places found matching your search and filter criteria.",
-                                  style: TextStyle(fontSize: 16),
-                                  textAlign: TextAlign.center,
-                                ),
+                    Builder(
+                      builder: (context) {
+                        if (filteredPlaces.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: const Text(
+                                "No places found matching your search and filter criteria.",
+                                style: TextStyle(fontSize: 16),
+                                textAlign: TextAlign.center,
                               ),
-                            );
-                          } else {
-                            return ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: filteredPlaces.length,
-                              itemBuilder: (context, index) {
+                            ),
+                          );
+                        } else {
+                          return ListView.builder(
+                            controller: _scrollController,
+                            itemCount: filteredPlaces.length + 1,
+                            itemBuilder: (context, index) {
+                              if (index < filteredPlaces.length) {
                                 final place = filteredPlaces[index];
                                 return PlaceListItem(
                                   place: place,
                                   onTap: () => _onPlaceTap(place),
                                 );
-                              },
-                            );
-                          }
-                        },
-                      ),
+                              } else {
+                                // Show loading indicator or "No more data" message
+                                if (isLoadingMore) {
+                                  return Center(
+                                      child: CircularProgressIndicator());
+                                } else if (!hasMoreData) {
+                                  return Center(
+                                      child: Text("No more places to show."));
+                                } else {
+                                  return SizedBox(); // Empty space
+                                }
+                              }
+                            },
+                          );
+                        }
+                      },
                     ),
                     // Favorites tab content
                     _buildFavoritesTab(),
-                    const Center(
-                      child: Text(
-                        "No favorites added yet.",
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ),
                   ],
                 ),
               ),

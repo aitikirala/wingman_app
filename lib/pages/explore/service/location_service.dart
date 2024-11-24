@@ -38,13 +38,12 @@ class LocationService {
   }
 
   static Future<String?> getLocationNameFromCoordinates(
-      double latitude, double longitude, String platform) async {
+      double latitude, double longitude) async {
     final url =
         Uri.parse('${PlaceService.serverUrl}/api/proxy/geocode').replace(
       queryParameters: {
         'latitude': '$latitude',
         'longitude': '$longitude',
-        'platform': platform,
       },
     );
 
@@ -52,15 +51,12 @@ class LocationService {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['status'] == 'OK') {
-          final results = data['results'];
-          if (results != null && results.isNotEmpty) {
-            final formattedAddress = results[0]['formatted_address'];
-            return formattedAddress;
-          }
+        if (data != null && data.containsKey('display_name')) {
+          final formattedAddress = data['display_name'];
+          return formattedAddress;
         } else {
           throw Exception(
-              'Failed to retrieve location name: ${data['status']}');
+              'Failed to retrieve location name: Response does not contain display_name');
         }
       } else {
         throw Exception(
@@ -69,6 +65,5 @@ class LocationService {
     } catch (e) {
       throw Exception('Error fetching location name: $e');
     }
-    return null;
   }
 }
