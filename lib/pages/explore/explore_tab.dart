@@ -374,6 +374,26 @@ class _ExploreTabState extends State<ExploreTab> {
     );
   }
 
+  void _toggleFavorite(dynamic place) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final userDoc =
+        FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+
+    setState(() {
+      favorites.removeWhere((fav) => fav['id'] == place['id']);
+    });
+
+    try {
+      await userDoc.update({
+        'favorites': FieldValue.arrayRemove([place]),
+      });
+    } catch (e) {
+      print('Error removing favorite: $e');
+    }
+  }
+
   void _changeLocation() {
     showDialog(
       context: context,
@@ -449,7 +469,11 @@ class _ExploreTabState extends State<ExploreTab> {
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                const Icon(Icons.favorite, color: Colors.red, size: 24),
+                GestureDetector(
+                  onTap: () => _toggleFavorite(favorite),
+                  child:
+                      const Icon(Icons.favorite, color: Colors.red, size: 24),
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
