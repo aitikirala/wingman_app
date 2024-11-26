@@ -40,9 +40,13 @@ dependencies:
   google_sign_in: ^6.1.4
   cloud_firestore: ^5.4.5
   google_maps_flutter: ^2.1.0
-  geolocator: ^9.0.2
+  geolocator: ^13.0.2
   flutter_google_places: ^0.3.0
   google_maps_webservice: ^0.0.20-nullsafety.5
+  firebase_storage: ^12.3.6
+  image_picker: ^1.1.2
+  cached_network_image: ^3.2.3
+  flutter_image_compress: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -53,7 +57,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^4.0.0
+  flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

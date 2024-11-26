@@ -1,7 +1,18 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../login/first_screen.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:html' as html;
+import 'dart:typed_data';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({Key? key}) : super(key: key);
@@ -40,6 +51,97 @@ class _ProfileTabState extends State<ProfileTab> {
     _lastNameController.dispose();
     _dobController.dispose();
     super.dispose();
+  }
+
+  Future<void> uploadPhoto(
+      Uint8List fileBytes, String fileName, String userId) async {
+    try {
+      // Upload the file to Firebase Storage
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures/$userId/$fileName');
+      final uploadTask = storageRef.putData(fileBytes);
+      final snapshot = await uploadTask;
+
+      // Get the download URL of the uploaded image
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // Save the photo URL in Firestore
+      await FirebaseFirestore.instance.collection('users').doc(userId).set(
+        {'photoURL': downloadUrl},
+        SetOptions(merge: true),
+      );
+
+      print('Photo uploaded successfully: $downloadUrl');
+    } catch (e) {
+      print('Error uploading photo: $e');
+    }
+  }
+
+  Future<Uint8List> compressImage(Uint8List imageBytes) async {
+    return await FlutterImageCompress.compressWithList(
+      imageBytes,
+      minHeight: 800,
+      minWidth: 800,
+      quality: 70, // Adjust quality to reduce file size
+    );
+  }
+
+  Future<Uint8List> compressImageForWeb(Uint8List imageBytes) async {
+    final completer = Completer<Uint8List>();
+    final blob = html.Blob([imageBytes]);
+
+    // Create a file reader
+    final reader = html.FileReader();
+    reader.readAsDataUrl(blob);
+
+    reader.onLoadEnd.listen((_) {
+      final canvas = html.CanvasElement();
+      final context = canvas.context2D;
+
+      final img = html.ImageElement();
+      img.src = reader.result as String;
+      img.onLoad.listen((_) {
+        // Set canvas size and draw image
+        canvas.width = (img.width ?? 100) ~/ 2; // Resize to 50% width
+        canvas.height = (img.height ?? 100) ~/ 2; // Resize to 50% height
+        context.drawImageScaled(img, 0, 0, canvas.width!, canvas.height!);
+
+        // Convert canvas to blob
+        canvas.toBlob((blob) {
+          final reader = html.FileReader();
+          reader.readAsArrayBuffer(blob!);
+          reader.onLoadEnd.listen((_) {
+            completer.complete(Uint8List.fromList(reader.result as List<int>));
+          });
+        } as String?);
+      });
+    });
+
+    return completer.future;
+  }
+
+  Future<void> pickAndUploadPhoto() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      final fileBytes = await pickedFile.readAsBytes();
+      final compressedBytes = kIsWeb
+          ? await compressImageForWeb(fileBytes) // Compress for Web
+          : await compressImage(fileBytes); // Compress for Mobile/Desktop
+
+      final fileName = pickedFile.name;
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+
+      if (userId != null) {
+        await uploadPhoto(compressedBytes, fileName, userId);
+      } else {
+        print('User not authenticated');
+      }
+    } else {
+      print('No file selected');
+    }
   }
 
   void _saveProfile() async {
@@ -94,11 +196,20 @@ class _ProfileTabState extends State<ProfileTab> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 40),
-                  if (userData['photoURL'] != null)
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: NetworkImage(userData['photoURL']),
-                    ),
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundImage: userData['photoURL'] != null
+                        ? CachedNetworkImageProvider(userData['photoURL'])
+                        : null,
+                    child: userData['photoURL'] == null
+                        ? const Icon(Icons.person, size: 50)
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: pickAndUploadPhoto, // Link the function here
+                    child: const Text('Upload Profile Picture'),
+                  ),
                   const SizedBox(height: 20),
                   Text(
                     '${userData['firstName'] ?? 'N/A'}',

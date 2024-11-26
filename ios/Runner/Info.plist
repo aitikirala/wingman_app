@@ -71,6 +71,11 @@
     <string>We need your location to show nearby places on the map.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>We need your location to show nearby places on the map.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+<string>We need access to your photo library to upload your profile picture.</string>
+<key>NSCameraUsageDescription</key>
+<string>We need access to your camera to upload your profile picture.</string>
+
     <key>GMSApiKey</key>
     <string>AIzaSyAnjiYYRSdcwj_l_hKb0yoHk0Yjj65V1ug</string>
 
