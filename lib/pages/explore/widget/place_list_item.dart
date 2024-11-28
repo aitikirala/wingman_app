@@ -1,5 +1,3 @@
-// place_item.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +37,6 @@ class _PlaceListItemState extends State<PlaceListItem> {
     final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
 
     try {
-      // Fetch the user's favorites
       final snapshot = await userDoc.get();
       if (!snapshot.exists) {
         print("User document does not exist!");
@@ -49,15 +46,13 @@ class _PlaceListItemState extends State<PlaceListItem> {
       final favorites =
           List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
 
-      // Adjust the favoriteData to match the OpenStreetMap data structure
       final favoriteData = {
-        'name': widget.place['tags']['name'] ?? 'Unknown Name',
-        'address': widget.place['tags']['addr:full'] ??
-            widget.place['tags']['addr:street'] ??
+        'name': widget.place['name'] ?? 'Unknown Name',
+        'address': widget.place['location']['formatted_address'] ??
+            widget.place['location']['address'] ??
             'Unknown Address',
       };
 
-      // Check if the current place exists in favorites
       final exists = favorites.any((favorite) =>
           favorite['name'] == favoriteData['name'] &&
           favorite['address'] == favoriteData['address']);
@@ -71,35 +66,31 @@ class _PlaceListItemState extends State<PlaceListItem> {
   }
 
   void toggleFavorite() async {
-    // Optimistically update UI
     setState(() {
       isFavorite = !isFavorite;
     });
 
-    // Get the currently logged-in user's ID
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       print('User not logged in!');
       setState(() {
-        isFavorite = !isFavorite; // Revert the state
+        isFavorite = !isFavorite;
       });
       return;
     }
 
-    final userId = user.uid; // Use the user's ID as the document ID
+    final userId = user.uid;
     final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
 
-    // Create the data to be added/removed to/from the favorites array
     final favoriteData = {
-      'name': widget.place['tags']['name'] ?? 'Unknown Name',
-      'address': widget.place['tags']['addr:full'] ??
-          widget.place['tags']['addr:street'] ??
+      'name': widget.place['name'] ?? 'Unknown Name',
+      'address': widget.place['location']['formatted_address'] ??
+          widget.place['location']['address'] ??
           'Unknown Address',
     };
 
     try {
-      // Get the current favorites array
       final snapshot = await userDoc.get();
       if (!snapshot.exists) {
         print("User document does not exist!");
@@ -109,51 +100,58 @@ class _PlaceListItemState extends State<PlaceListItem> {
       final favorites =
           List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
 
-      // Check if the item already exists in the array
       final exists = favorites.any((favorite) =>
           favorite['name'] == favoriteData['name'] &&
           favorite['address'] == favoriteData['address']);
 
       if (exists) {
-        // If it exists, remove it
         await userDoc.update({
           'favorites': FieldValue.arrayRemove([favoriteData]),
         });
         setState(() {
-          isFavorite = false; // Update UI state
+          isFavorite = false;
         });
         print('Removed from favorites.');
       } else {
-        // If it doesn’t exist, add it
         await userDoc.update({
           'favorites': FieldValue.arrayUnion([favoriteData]),
         });
         setState(() {
-          isFavorite = true; // Update UI state
+          isFavorite = true;
         });
         print('Added to favorites.');
       }
     } catch (e) {
       print("Error updating favorites: $e");
       setState(() {
-        isFavorite =
-            !isFavorite; // Revert the state change if there is an error
+        isFavorite = !isFavorite;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Since OpenStreetMap does not provide photos, we'll skip photo handling
-    // You can use a placeholder image or an icon instead
+    // Extract photo URL
+    final photo =
+        widget.place['photos'] != null && widget.place['photos'].isNotEmpty
+            ? widget.place['photos'][0]
+            : null;
 
-    final name = widget.place['tags']['name'] ?? 'No Name';
-    final address = widget.place['tags']['addr:full'] ??
-        widget.place['tags']['addr:street'] ??
+    String? photoUrl;
+
+    if (photo != null) {
+      final prefix = photo['prefix'];
+      final suffix = photo['suffix'];
+      // You can specify a size or use 'original'
+      final size = '200x200'; // Or 'original'
+      photoUrl = '$prefix$size$suffix';
+    }
+
+    final rating = widget.place['rating'];
+    final name = widget.place['name'] ?? 'No Name';
+    final address = widget.place['location']['formatted_address'] ??
+        widget.place['location']['address'] ??
         'No Address';
-
-    // Since OpenStreetMap does not provide ratings, we can omit that part or set a default
-    final rating = widget.place['tags']['rating'] ?? 'No Rating';
 
     return InkWell(
       onTap: widget.onTap,
@@ -194,30 +192,37 @@ class _PlaceListItemState extends State<PlaceListItem> {
                         color: Colors.grey,
                       ),
                     ),
-                    // If you want to include rating, you can add it here
-                    /*
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.yellow[700], size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating.toString(),
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                    */
+                    if (rating != null)
+                      Row(
+                        children: [
+                          Icon(Icons.star, color: Colors.yellow[700], size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating.toString(),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
-              // Since we don't have photos, you might display an icon or skip this
-              /*
-              Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Icon(Icons.place, size: 50, color: Colors.blue),
-              ),
-              */
+              if (photoUrl != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      photoUrl,
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.broken_image, size: 100);
+                      },
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

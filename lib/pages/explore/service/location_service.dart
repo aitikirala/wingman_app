@@ -1,5 +1,3 @@
-// services/location_service.dart
-
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -51,12 +49,12 @@ class LocationService {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data != null && data.containsKey('display_name')) {
-          final formattedAddress = data['display_name'];
+        if (data != null && data.containsKey('formatted')) {
+          final formattedAddress = data['formatted'];
           return formattedAddress;
         } else {
           throw Exception(
-              'Failed to retrieve location name: Response does not contain display_name');
+              'Failed to retrieve location name: Response does not contain formatted address');
         }
       } else {
         throw Exception(

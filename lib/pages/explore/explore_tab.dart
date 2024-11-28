@@ -199,18 +199,10 @@ class _ExploreTabState extends State<ExploreTab> {
 
         // Update allTypes
         for (var place in results) {
-          if (place['tags'] != null) {
-            // Collect the values of 'amenity', 'shop', 'leisure', etc., as types
-            List<String> placeTypes = [];
-            if (place['tags']['amenity'] != null) {
-              placeTypes.add(place['tags']['amenity']);
-            }
-            if (place['tags']['shop'] != null) {
-              placeTypes.add(place['tags']['shop']);
-            }
-            if (place['tags']['leisure'] != null) {
-              placeTypes.add(place['tags']['leisure']);
-            }
+          if (place['categories'] != null) {
+            List<dynamic> categories = place['categories'];
+            List<String> placeTypes =
+                categories.map((cat) => cat['name'] as String).toList();
             allTypes.addAll(placeTypes);
           }
         }
@@ -269,21 +261,14 @@ class _ExploreTabState extends State<ExploreTab> {
     String query = searchController.text.toLowerCase();
     return nearbyPlaces.where((place) {
       // Apply search filter
-      final name = place['tags']['name']?.toLowerCase() ?? '';
+      final name = place['name']?.toLowerCase() ?? '';
       final matchesSearch = name.contains(query) || query.isEmpty;
 
       // Apply type filter
       List<String> types = [];
-      if (place['tags'] != null) {
-        if (place['tags']['amenity'] != null) {
-          types.add(place['tags']['amenity']);
-        }
-        if (place['tags']['shop'] != null) {
-          types.add(place['tags']['shop']);
-        }
-        if (place['tags']['leisure'] != null) {
-          types.add(place['tags']['leisure']);
-        }
+      if (place['categories'] != null) {
+        List<dynamic> categories = place['categories'];
+        types = categories.map((cat) => cat['name'] as String).toList();
       }
       final matchesFilter = selectedTypes.isEmpty ||
           types.any((type) => selectedTypes.contains(type));
@@ -293,65 +278,136 @@ class _ExploreTabState extends State<ExploreTab> {
     }).toList();
   }
 
-  void _onPlaceTap(dynamic place) {
-    // Since Overpass API returns detailed data, we can use 'place' directly
-    final placeDetails = place;
-    final name = placeDetails['tags']['name'] ?? 'Unnamed Place';
-    final address = placeDetails['tags']['addr:full'] ??
-        placeDetails['tags']['addr:street'] ??
-        'No Address';
-    final latitude = placeDetails['lat'];
-    final longitude = placeDetails['lon'];
+  void _onPlaceTap(dynamic place) async {
+    try {
+      final placeId = place['fsq_id'];
+      final placeDetails = await PlaceService.fetchPlaceDetails(placeId);
 
-    // Since OpenStreetMap does not provide photos, skip photo handling
+      final name = placeDetails['name'] ?? 'Unnamed Place';
+      final address = placeDetails['location']['formatted_address'] ??
+          placeDetails['location']['address'] ??
+          'No Address';
+      final rating = placeDetails['rating'];
+      final photos = placeDetails['photos'];
+      final hours = placeDetails['hours'];
+      final tips = placeDetails['tips'];
 
-    // Display the details in a dialog
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Center(
-            child: Text(
-              name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow(Icons.location_on, 'Address', address),
-                // Add more details if available
-              ],
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.add, color: Colors.blue),
-              onPressed: () {
-                _addToPlan(placeDetails);
-                Navigator.of(context).pop(); // Close dialog after adding
-              },
-            ),
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text("Close", style: TextStyle(fontSize: 16)),
+      // Debugging statements
+      print('hours: $hours');
+      print('hours type: ${hours.runtimeType}');
+
+      // Build photo URL if available
+      String? photoUrl;
+      if (photos != null && photos.isNotEmpty) {
+        final photo = photos[0];
+        final prefix = photo['prefix'];
+        final suffix = photo['suffix'];
+        final size = 'original'; // or specify size e.g., '200x200'
+        photoUrl = '$prefix$size$suffix';
+      }
+
+      // Display the details in a dialog
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Center(
+              child: Text(
+                name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
             ),
-          ],
-        );
-      },
-    );
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (photoUrl != null)
+                    Center(
+                      child: Image.network(
+                        photoUrl,
+                        width: 200,
+                        height: 200,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.broken_image, size: 100);
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  _buildDetailRow(Icons.location_on, 'Address', address),
+                  const SizedBox(height: 8),
+                  if (rating != null)
+                    _buildDetailRow(Icons.star, 'Rating', rating.toString()),
+                  const SizedBox(height: 8),
+                  if (hours != null)
+                    _buildDetailRow(
+                        Icons.access_time, 'Hours', _formatHours(hours)),
+                  const SizedBox(height: 8),
+                  if (tips != null && tips.isNotEmpty)
+                    _buildDetailRow(
+                        Icons.comment, 'Reviews', _formatTips(tips)),
+                  // Add more details if available
+                ],
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add, color: Colors.blue),
+                onPressed: () {
+                  _addToPlan(placeDetails);
+                  Navigator.of(context).pop(); // Close dialog after adding
+                },
+              ),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text("Close", style: TextStyle(fontSize: 16)),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error fetching place details: $e';
+      });
+    }
+  }
+
+  String _formatHours(dynamic hours) {
+    if (hours != null) {
+      if (hours is Map && hours['display'] != null) {
+        final display = hours['display'];
+        if (display is List) {
+          return display.join('\n');
+        } else if (display is String) {
+          return display;
+        } else {
+          return display.toString();
+        }
+      } else if (hours is String) {
+        return hours;
+      } else {
+        return hours.toString();
+      }
+    }
+    return 'No hours available';
+  }
+
+  String _formatTips(List<dynamic> tips) {
+    if (tips.isEmpty) return 'No reviews available';
+
+    return tips.map((tip) => '- ${tip['text']}').join('\n\n');
   }
 
   void _addToPlan(dynamic placeDetails) {
-    print('addToPlan function called with: ${placeDetails['tags']['name']}');
+    print('addToPlan function called with: ${placeDetails['name']}');
     // Implement your logic to add the place to the user's plan
   }
 
@@ -416,9 +472,9 @@ class _ExploreTabState extends State<ExploreTab> {
 
   Future<void> _displayPrediction(Map<String, dynamic> suggestion) async {
     try {
-      final double lat = double.parse(suggestion['lat']);
-      final double lng = double.parse(suggestion['lon']);
-      final name = suggestion['display_name'];
+      final double lat = suggestion['geometry']['lat'];
+      final double lng = suggestion['geometry']['lng'];
+      final name = suggestion['formatted'];
 
       setState(() {
         currentLocation = LatLng(lat, lng);

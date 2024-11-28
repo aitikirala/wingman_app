@@ -1,5 +1,3 @@
-// CustomAutocompleteWidget.dart
-
 import 'package:flutter/material.dart';
 import 'package:wingman_app/pages/explore/service/place_service.dart';
 
@@ -59,7 +57,7 @@ class _CustomAutocompleteWidgetState extends State<CustomAutocompleteWidget> {
             itemBuilder: (context, index) {
               final suggestion = _suggestions[index];
               return ListTile(
-                title: Text(suggestion['display_name'] ?? 'No Name'),
+                title: Text(suggestion['formatted'] ?? 'No Name'),
                 onTap: () {
                   widget.onPlaceSelected(suggestion);
                   _controller.clear();

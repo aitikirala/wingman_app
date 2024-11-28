@@ -1,13 +1,9 @@
-// services/place_service.dart
-// When running android: 10.0.2.2:8080 replaces localhost:8080
-
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class PlaceService {
   // Update this to your server's address
-  static final String serverUrl =
-      'http://localhost:8080'; // Replace with your server's IP and port
+  static final String serverUrl = 'http://localhost:8080';
 
   String? sessionId;
 
@@ -49,12 +45,10 @@ class PlaceService {
     }
   }
 
-  static Future<Map<String, dynamic>> fetchPlaceDetails(
-      String placeId, String platform) async {
+  static Future<Map<String, dynamic>> fetchPlaceDetails(String placeId) async {
     final url = Uri.parse('$serverUrl/api/proxy/detail').replace(
       queryParameters: {
         'placeId': placeId,
-        'platform': platform,
       },
     );
 
@@ -70,16 +64,6 @@ class PlaceService {
     } catch (e) {
       throw Exception("Error fetching place details: $e");
     }
-  }
-
-  static String getPhotoUrl(String photoReference, String platform) {
-    final url = Uri.parse('$serverUrl/api/proxy/photo').replace(
-      queryParameters: {
-        'photoReference': photoReference,
-        'platform': platform,
-      },
-    );
-    return url.toString();
   }
 
   static Future<List<dynamic>> fetchAutocompleteSuggestions(
