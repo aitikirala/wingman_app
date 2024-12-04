@@ -1,27 +1,33 @@
-// services/place_service.dart
-// When running android: 10.0.2.2:8080 replaces localhost:8080
-
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class PlaceService {
   // Update this to your server's address
-  static final String serverUrl =
-      'http://localhost:8080'; // Replace with your server's IP and port
+  static final String serverUrl = 'http://localhost:8080';
+
+  String? sessionId;
+
+  Future<void> startSession() async {
+    final response =
+        await http.get(Uri.parse('$serverUrl/api/proxy/startSession'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      sessionId = data['sessionId'];
+    } else {
+      throw Exception('Failed to start session');
+    }
+  }
 
   static Future<Map<String, dynamic>> fetchNearbyPlaces(
-      double latitude, double longitude, String platform,
-      {String? pageToken, int groupIndex = 0}) async {
-    final int radius = 1600; // 20 miles in meters
-
+      double latitude, double longitude,
+      {int radius = 1600, int groupIndex = 0, String? sessionId}) async {
     final url = Uri.parse('$serverUrl/api/proxy/nearbysearch').replace(
       queryParameters: {
         'latitude': latitude.toString(),
         'longitude': longitude.toString(),
         'radius': radius.toString(),
-        'platform': platform,
         'groupIndex': groupIndex.toString(),
-        if (pageToken != null) 'nextPageToken': pageToken,
+        if (sessionId != null) 'sessionId': sessionId,
       },
     );
 
@@ -39,12 +45,10 @@ class PlaceService {
     }
   }
 
-  static Future<Map<String, dynamic>> fetchPlaceDetails(
-      String placeId, String platform) async {
+  static Future<Map<String, dynamic>> fetchPlaceDetails(String placeId) async {
     final url = Uri.parse('$serverUrl/api/proxy/detail').replace(
       queryParameters: {
         'placeId': placeId,
-        'platform': platform,
       },
     );
 
@@ -62,30 +66,19 @@ class PlaceService {
     }
   }
 
-  static String getPhotoUrl(String photoReference, String platform) {
-    final url = Uri.parse('$serverUrl/api/proxy/photo').replace(
-      queryParameters: {
-        'photoReference': photoReference,
-        'platform': platform,
-      },
-    );
-    return url.toString();
-  }
-
   static Future<List<dynamic>> fetchAutocompleteSuggestions(
-      String input, String platform) async {
+      String input) async {
     final url = Uri.parse('$serverUrl/api/proxy/autocomplete').replace(
       queryParameters: {
         'input': input,
-        'platform': platform,
       },
     );
 
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['predictions'] ?? [];
+        final List<dynamic> data = json.decode(response.body);
+        return data;
       } else {
         throw Exception(
             'Failed to fetch suggestions. Status code: ${response.statusCode}');

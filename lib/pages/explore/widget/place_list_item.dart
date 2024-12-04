@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:wingman_app/pages/explore/service/place_service.dart';
 
 class PlaceListItem extends StatefulWidget {
   final dynamic place;
@@ -38,7 +37,6 @@ class _PlaceListItemState extends State<PlaceListItem> {
     final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
 
     try {
-      // Fetch the user's favorites
       final snapshot = await userDoc.get();
       if (!snapshot.exists) {
         print("User document does not exist!");
@@ -48,10 +46,11 @@ class _PlaceListItemState extends State<PlaceListItem> {
       final favorites =
           List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
 
-      // Check if the current place exists in favorites
       final favoriteData = {
         'name': widget.place['name'] ?? 'Unknown Name',
-        'address': widget.place['vicinity'] ?? 'Unknown Address',
+        'address': widget.place['location']['formatted_address'] ??
+            widget.place['location']['address'] ??
+            'Unknown Address',
       };
 
       final exists = favorites.any((favorite) =>
@@ -67,33 +66,31 @@ class _PlaceListItemState extends State<PlaceListItem> {
   }
 
   void toggleFavorite() async {
-    // Optimistically update UI
     setState(() {
       isFavorite = !isFavorite;
     });
 
-    // Get the currently logged-in user's ID
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       print('User not logged in!');
       setState(() {
-        isFavorite = !isFavorite; // Revert the state
+        isFavorite = !isFavorite;
       });
       return;
     }
 
-    final userId = user.uid; // Use the user's ID as the document ID
+    final userId = user.uid;
     final userDoc = FirebaseFirestore.instance.collection('users').doc(userId);
 
-    // Create the data to be added/removed to/from the favorites array
     final favoriteData = {
       'name': widget.place['name'] ?? 'Unknown Name',
-      'address': widget.place['vicinity'] ?? 'Unknown Address',
+      'address': widget.place['location']['formatted_address'] ??
+          widget.place['location']['address'] ??
+          'Unknown Address',
     };
 
     try {
-      // Get the current favorites array
       final snapshot = await userDoc.get();
       if (!snapshot.exists) {
         print("User document does not exist!");
@@ -103,50 +100,58 @@ class _PlaceListItemState extends State<PlaceListItem> {
       final favorites =
           List<Map<String, dynamic>>.from(snapshot.data()?['favorites'] ?? []);
 
-      // Check if the item already exists in the array
       final exists = favorites.any((favorite) =>
           favorite['name'] == favoriteData['name'] &&
           favorite['address'] == favoriteData['address']);
 
       if (exists) {
-        // If it exists, remove it
         await userDoc.update({
           'favorites': FieldValue.arrayRemove([favoriteData]),
         });
         setState(() {
-          isFavorite = false; // Update UI state
+          isFavorite = false;
         });
         print('Removed from favorites.');
       } else {
-        // If it doesn’t exist, add it
         await userDoc.update({
           'favorites': FieldValue.arrayUnion([favoriteData]),
         });
         setState(() {
-          isFavorite = true; // Update UI state
+          isFavorite = true;
         });
         print('Added to favorites.');
       }
     } catch (e) {
       print("Error updating favorites: $e");
       setState(() {
-        isFavorite =
-            !isFavorite; // Revert the state change if there is an error
+        isFavorite = !isFavorite;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final photoReference = widget.place['photos'] != null
-        ? widget.place['photos'][0]['photo_reference']
-        : null;
+    // Extract photo URL
+    final photo =
+        widget.place['photos'] != null && widget.place['photos'].isNotEmpty
+            ? widget.place['photos'][0]
+            : null;
 
-    final photoUrl = photoReference != null
-        ? PlaceService.getPhotoUrl(photoReference, 'web')
-        : null;
+    String? photoUrl;
+
+    if (photo != null) {
+      final prefix = photo['prefix'];
+      final suffix = photo['suffix'];
+      // You can specify a size or use 'original'
+      final size = '200x200'; // Or 'original'
+      photoUrl = '$prefix$size$suffix';
+    }
 
     final rating = widget.place['rating'];
+    final name = widget.place['name'] ?? 'No Name';
+    final address = widget.place['location']['formatted_address'] ??
+        widget.place['location']['address'] ??
+        'No Address';
 
     return InkWell(
       onTap: widget.onTap,
@@ -173,7 +178,7 @@ class _PlaceListItemState extends State<PlaceListItem> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.place['name'] ?? 'No Name',
+                      name,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -181,23 +186,24 @@ class _PlaceListItemState extends State<PlaceListItem> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.place['vicinity'] ?? 'No Address',
+                      address,
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.grey,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.yellow[700], size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating != null ? rating.toString() : 'No Rating',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
+                    if (rating != null)
+                      Row(
+                        children: [
+                          Icon(Icons.star, color: Colors.yellow[700], size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating.toString(),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
